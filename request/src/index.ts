@@ -1,7 +1,9 @@
 import express from "express";
 import { S3 } from "aws-sdk";
+import dotenv from 'dotenv';
 
 const app = express();
+dotenv.config();
 
 const s3 = new S3({
     accessKeyId: process.env.ACCESS_KEY_ID,
@@ -19,7 +21,7 @@ app.get("/*", async (req, res) => {
         Bucket: "vercel",
         Key: `dist/${id}${filePath}`
     }).promise();
-    
+
     const type = filePath.endsWith("html") ? "text/html" : filePath.endsWith("css") ? "text/css" : "application/javascript"
     res.set("Content-Type", type);
 
@@ -27,4 +29,6 @@ app.get("/*", async (req, res) => {
 })
 
 
-app.listen(3001)
+app.listen(3001, () => {
+    console.log("request server is live")
+})

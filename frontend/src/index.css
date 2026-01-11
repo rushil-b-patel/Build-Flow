@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@theme {
+  --color-slate-900: #0f172a;
+  --color-slate-800: #1e293b;
+  --color-slate-700: #334155;
+  --color-slate-400: #94a3b8;
+  --color-slate-100: #f1f5f9;
+  
+  --color-blue-400: #60a5fa;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+  
+  --color-violet-400: #a78bfa;
+  
+  --color-emerald-500: #10b981;
+  --color-emerald-400: #34d399;
+  --color-emerald-300: #6ee7b7;
+  
+  --color-amber-500: #f59e0b;
+  --color-red-500: #ef4444;
+}
+
+@layer base {
+  body {
+    @apply min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center;
+    background: radial-gradient(circle at top center, #1e293b, #0f172a);
+  }
+}

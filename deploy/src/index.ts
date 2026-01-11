@@ -11,11 +11,11 @@ publisher.connect();
 async function main(){
     while(1){
         const response = await subscriber.brPop(
-            commandOptions({isolated: true}), 
+            commandOptions({isolated: true}),
             'build-queue',
             0
         );
-        // @ts-ignore;
+
         const id = response.element
         console.log(`output/${id}`);
         await downloadS3Folder(`output/${id}`)
@@ -26,4 +26,3 @@ async function main(){
 }
 
 main();
-// downloadS3Folder('output/b4b3cd5');
