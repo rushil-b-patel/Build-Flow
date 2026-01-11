@@ -22,5 +22,4 @@ export const uploadFiles = async (fileName: string, localFilePath: string) => {
         Key: fileName,
         Body: fileContent,
     }).promise();
-    console.log(response);
 }

@@ -16,6 +16,7 @@ async function main(){
             0
         );
 
+        // @ts-ignore;
         const id = response.element
         console.log(`output/${id}`);
         await downloadS3Folder(`output/${id}`)
