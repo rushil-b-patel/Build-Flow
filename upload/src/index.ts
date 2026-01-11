@@ -3,7 +3,6 @@ import cors from 'cors';
 import simpleGit from 'simple-git';
 import path from 'path';
 import { createClient } from 'redis';
-
 import { generate, getAllFiles } from './utils'
 import { uploadFiles } from './upload';
 
@@ -23,25 +22,20 @@ app.post('/deploy', async (req, res) => {
         const id = generate();
         await simpleGit().clone(repoUrl, path.join(__dirname, `output/${id}`));
 
-        // const files = getAllFiles(path.join(__dirname, `output/${id}`));
         const files = getAllFiles(path.join(__dirname, `output/${id}`))
-        
-        
         files.forEach((file) =>{
             const path = file.toString().split("\\").slice(5).join("/");
             uploadFiles(path, file)
         })
-        
+
         await new Promise((resolve) => setTimeout(resolve, 5000))
         publisher.lPush('build-queue', id);
         publisher.hSet('status', id, 'uploaded');
-        
+
         res.json({
             id:id,
             files: files
         });
-
-        
     }catch(err){
         res.status(500).json({message: (err as Error).message})
     }
@@ -56,5 +50,5 @@ app.get("/status", async (req, res) => {
 })
 
 app.listen(3000, ()=>{
-    console.log('server is live')
+    console.log('upload server is live')
 });

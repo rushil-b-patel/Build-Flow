@@ -17,10 +17,10 @@ const s3 = new S3({
 
 export const uploadFiles = async (fileName: string, localFilePath: string) => {
     const fileContent = fs.readFileSync(localFilePath);
-        const response = await s3.upload({
-            Bucket: bucketName,
-            Key: fileName,
-            Body: fileContent,
-        }).promise();
-        console.log(response);
+    const response = await s3.upload({
+        Bucket: bucketName,
+        Key: fileName,
+        Body: fileContent,
+    }).promise();
+    console.log(response);
 }

@@ -20,9 +20,9 @@ export async function downloadS3Folder(prefix: string) {
         Bucket: BUCKET_NAME,
         Prefix: prefix
     }).promise();
-    
+
     console.log("allFiles", allFiles);
-    
+
     const allPromises = allFiles.Contents?.map(async ({Key}) => {
         return new Promise(async (resolve) => {
             if (!Key) {
@@ -33,10 +33,10 @@ export async function downloadS3Folder(prefix: string) {
             console.log("finalOutputPath", finalOutputPath);
 
             const outputFile = fs.createWriteStream(finalOutputPath);
-            
+
             const dirName = path.dirname(finalOutputPath);
             console.log("dirName", dirName);
-            
+
             if (!fs.existsSync(dirName)){
                 fs.mkdirSync(dirName, { recursive: true });
             }
