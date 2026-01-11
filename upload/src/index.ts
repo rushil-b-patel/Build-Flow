@@ -24,8 +24,9 @@ app.post('/deploy', async (req, res) => {
 
         const files = getAllFiles(path.join(__dirname, `output/${id}`))
         files.forEach((file) =>{
-            const path = file.toString().split("\\").slice(5).join("/");
-            uploadFiles(path, file)
+            const relativePath = file.slice(__dirname.length + 1);
+            console.log('Uploading:', relativePath);
+            uploadFiles(relativePath, file)
         })
 
         await new Promise((resolve) => setTimeout(resolve, 5000))
