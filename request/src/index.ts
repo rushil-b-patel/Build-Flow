@@ -13,7 +13,6 @@ const s3 = new S3({
 
 app.get("/*", async (req, res) => {
     const host = req.hostname;
-
     const id = host.split(".")[0];
     const filePath = req.path;
 
@@ -24,7 +23,6 @@ app.get("/*", async (req, res) => {
 
     const type = filePath.endsWith("html") ? "text/html" : filePath.endsWith("css") ? "text/css" : "application/javascript"
     res.set("Content-Type", type);
-
     res.send(contents.Body);
 })
 

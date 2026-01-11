@@ -13,15 +13,10 @@ const s3 = new S3({
 })
 
 export async function downloadS3Folder(prefix: string) {
-    console.log("Downloading", prefix);
-    console.log("BUCKET_NAME", BUCKET_NAME);
-
     const allFiles = await s3.listObjectsV2({
         Bucket: BUCKET_NAME,
         Prefix: prefix
     }).promise();
-
-    console.log("allFiles", allFiles);
 
     const allPromises = allFiles.Contents?.map(async ({Key}) => {
         return new Promise(async (resolve) => {
@@ -30,12 +25,8 @@ export async function downloadS3Folder(prefix: string) {
                 return;
             }
             const finalOutputPath = path.join(__dirname, Key);
-            console.log("finalOutputPath", finalOutputPath);
-
             const outputFile = fs.createWriteStream(finalOutputPath);
-
             const dirName = path.dirname(finalOutputPath);
-            console.log("dirName", dirName);
 
             if (!fs.existsSync(dirName)){
                 fs.mkdirSync(dirName, { recursive: true });
@@ -48,8 +39,6 @@ export async function downloadS3Folder(prefix: string) {
             })
         })
     }) || []
-    console.log("awaiting");
-
     await Promise.all(allPromises?.filter(x => x !== undefined));
 }
 
@@ -77,10 +66,9 @@ const getAllFiles = (folderPath: string) => {
 
 const uploadFile = async (fileName: string, localFilePath: string) => {
     const fileContent = fs.readFileSync(localFilePath);
-    const response = await s3.upload({
+    await s3.upload({
         Body: fileContent,
         Bucket: "vercel",
         Key: fileName,
     }).promise();
-    console.log(response);
 }
