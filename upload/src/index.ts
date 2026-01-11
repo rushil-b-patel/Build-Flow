@@ -20,12 +20,13 @@ app.post('/deploy', async (req, res) => {
     try{
         const repoUrl = req.body.repoUrl;
         const id = generate();
-        await simpleGit().clone(repoUrl, path.join(__dirname, `output/${id}`));
+        const dirName = path.join(__dirname, `output/${id}`)
 
-        const files = getAllFiles(path.join(__dirname, `output/${id}`))
+        await simpleGit().clone(repoUrl, dirName);
+
+        const files = getAllFiles(dirName)
         files.forEach((file) =>{
             const relativePath = file.slice(__dirname.length + 1);
-            console.log('Uploading:', relativePath);
             uploadFiles(relativePath, file)
         })
 

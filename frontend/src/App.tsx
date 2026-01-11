@@ -49,26 +49,26 @@ function App() {
 
   return (
     <div className="w-full max-w-7xl mx-auto p-8 text-center">
-      <h1 className="text-5xl font-bold mb-8 bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent leading-tight">
+      <h1 className="text-5xl font-bold mb-8">
         Build Flow
       </h1>
 
-      <div className="max-w-2xl mx-auto bg-slate-800 p-8 rounded-2xl shadow-lg border border-slate-700">
+      <div className="max-w-2xl mx-auto p-8 rounded-2xl shadow-lg border">
         <div className="mb-8">
-            <p className="text-slate-400 text-lg">
+            <p className="text-lg">
                 Deploy your GitHub repositories instantly.
             </p>
         </div>
 
         <div className="flex flex-col items-center gap-4">
             <div className="relative w-full">
-                <Github className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                <Github className="absolute left-3 top-1/2 -translate-y-1/2" size={20} />
                 <input
                     type="text"
                     placeholder="https://github.com/username/repo"
                     value={repoUrl}
                     onChange={(e) => setRepoUrl(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-700 bg-slate-900 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors disabled:opacity-50"
+                    className="w-full pl-10 pr-4 py-3 rounded-lg border focus:outline-none transition-colors disabled:opacity-50"
                     disabled={status === 'uploading' || status === 'uploaded'}
                 />
             </div>
