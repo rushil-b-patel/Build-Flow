@@ -3,7 +3,8 @@ import { useState } from 'react'
 import axios from 'axios'
 import { Github, UploadCloud, CheckCircle, Loader2, ArrowRight } from 'lucide-react'
 
-const API_BASE_URL = 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_BASE_URL;
+const DEPLOY_URL = import.meta.env.VITE_DEPLOY_URL;
 
 function App() {
   const [repoUrl, setRepoUrl] = useState('')
@@ -92,7 +93,7 @@ function App() {
 
         {status !== 'idle' && (
             <div className="mt-8 text-left border-t border-slate-700 pt-6">
-                <div className="flex items-center gap-3 mb-3">
+                <div className="flex items-center justify-center gap-3">
                     {status === 'uploading' && <Loader2 className="animate-spin text-blue-500" />}
                     {status === 'uploaded' && <Loader2 className="animate-spin text-amber-500" />}
                     {status === 'deployed' && <CheckCircle className="text-emerald-500" />}
@@ -109,22 +110,22 @@ function App() {
                 {status === 'error' && <p className="text-red-500 text-sm">{errorMsg}</p>}
 
                 {status === 'deployed' && uploadId && (
-                    <div className="mt-6 p-4 bg-emerald-500/10 rounded-lg border border-emerald-500 text-emerald-400 break-all">
-                        <p className="m-0 text-sm mb-2 text-emerald-300">Project URL:</p>
+                    <div className="mt-6 p-4 bg-blue-500/10 rounded-lg border border-blue-500 text-blue-500 break-all">
+                        <p className="m-0 text-sm mb-2 text-blue-500">Project URL:</p>
                         <div className="flex items-center justify-between gap-4">
                             <a
-                                href={`http://${uploadId}.localhost:3001/index.html`}
+                                href={`http://${uploadId}.${DEPLOY_URL}/index.html`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="font-bold hover:underline text-emerald-400"
+                                className="font-bold hover:underline text-blue-500"
                             >
-                                http://{uploadId}.localhost:3001/index.html
+                                http://{uploadId}.{DEPLOY_URL}/index.html
                             </a>
                             <a
-                                href={`http://${uploadId}.localhost:3001/index.html`}
+                                href={`http://${uploadId}.${DEPLOY_URL}/index.html`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-emerald-400 hover:text-emerald-300"
+                                className="text-blue-500 hover:text-blue-600"
                             >
                                 <ArrowRight size={18} />
                             </a>
