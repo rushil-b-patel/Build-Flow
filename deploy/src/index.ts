@@ -2,10 +2,14 @@ import { commandOptions, createClient } from 'redis';
 import { copyFinalDist, downloadS3Folder } from './aws';
 import { buildProject } from './build';
 
-const subscriber = createClient();
+const subscriber = createClient({
+    url: process.env.REDIS_URL || "redis://localhost:6379"
+});
 subscriber.connect();
 
-const publisher = createClient();
+const publisher = createClient({
+    url: process.env.REDIS_URL || "redis://localhost:6379"
+});
 publisher.connect();
 
 async function main(){

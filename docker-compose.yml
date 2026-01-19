@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:alpine
+    ports:
+      - "6380:6379"
+
+  upload:
+    build: ./upload
+    ports:
+      - "3000:3000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    env_file:
+      - ./upload/.env
+
+  deploy:
+    build: ./deploy
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    env_file:
+      - ./deploy/.env
+
+  request:
+    build: ./request
+    ports:
+      - "3001:3001"
+    env_file:
+      - ./request/.env

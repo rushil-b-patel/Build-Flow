@@ -7,10 +7,14 @@ import { generate, getAllFiles } from './utils'
 import { uploadFiles } from './upload';
 
 const app = express();
-const publisher = createClient();
+const publisher = createClient({
+    url: process.env.REDIS_URL || "redis://localhost:6379"
+});
 publisher.connect();
 
-const subscriber = createClient();
+const subscriber = createClient({
+    url: process.env.REDIS_URL || "redis://localhost:6379"
+});
 subscriber.connect();
 
 app.use(cors());
