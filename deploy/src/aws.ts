@@ -42,18 +42,21 @@ export async function downloadS3Folder(prefix: string) {
     await Promise.all(allPromises?.filter(x => x !== undefined));
 }
 
-export function copyFinalDist(id: string) {
+export async function copyFinalDist(id: string) {
     const folderPath = path.join(__dirname, `output/${id}/dist`);
     const allFiles = getAllFiles(folderPath);
-    allFiles.forEach(file => {
-        uploadFile(`dist/${id}/` + file.slice(folderPath.length + 1), file);
-    })
+    await Promise.all(
+        allFiles.map((file) =>
+            uploadFile(`dist/${id}/` + file.slice(folderPath.length + 1), file)
+        )
+    );
 }
 
 const getAllFiles = (folderPath: string) => {
     let response: string[] = [];
 
-    const allFilesAndFolders = fs.readdirSync(folderPath);allFilesAndFolders.forEach(file => {
+    const allFilesAndFolders = fs.readdirSync(folderPath);
+    allFilesAndFolders.forEach(file => {
         const fullFilePath = path.join(folderPath, file);
         if (fs.statSync(fullFilePath).isDirectory()) {
             response = response.concat(getAllFiles(fullFilePath))
@@ -68,7 +71,7 @@ const uploadFile = async (fileName: string, localFilePath: string) => {
     const fileContent = fs.readFileSync(localFilePath);
     await s3.upload({
         Body: fileContent,
-        Bucket: "vercel",
+        Bucket: BUCKET_NAME,
         Key: fileName,
     }).promise();
 }
