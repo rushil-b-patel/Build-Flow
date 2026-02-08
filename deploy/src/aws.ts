@@ -32,7 +32,7 @@ export async function downloadS3Folder(prefix: string) {
                 fs.mkdirSync(dirName, { recursive: true });
             }
             s3.getObject({
-                Bucket: "vercel",
+                Bucket: BUCKET_NAME,
                 Key
             }).createReadStream().pipe(outputFile).on("finish", () => {
                 resolve("");

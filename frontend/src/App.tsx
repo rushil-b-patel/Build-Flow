@@ -57,7 +57,7 @@ function App() {
       <div className="max-w-2xl mx-auto p-8 rounded-2xl shadow-lg border">
         <div className="mb-8">
             <p className="text-lg">
-                Deploy your GitHub repositories instantly.
+                Deploy your Projects instantly.
             </p>
         </div>
 
@@ -77,7 +77,7 @@ function App() {
             <button
                 onClick={handleDeploy}
                 disabled={!repoUrl || status === 'uploading' || status === 'uploaded'}
-                className="w-full flex justify-center items-center gap-2 py-3 px-4 rounded-lg bg-blue-500 hover:bg-blue-600 active:translate-y-[1px] transition-all disabled:bg-slate-600 disabled:cursor-not-allowed font-medium text-white shadow-sm"
+                className="w-full flex justify-center items-center gap-2 py-3 px-4 rounded-lg bg-black hover:bg-white hover:text-black hover:border hover:border-black border active:translate-y-px transition-all disabled:cursor-not-allowed font-medium text-white shadow-sm"
             >
                 {status === 'uploading' ? (
                     <>
@@ -97,7 +97,7 @@ function App() {
                     {status === 'uploading' && <Loader2 className="animate-spin text-blue-500" />}
                     {status === 'uploaded' && <Loader2 className="animate-spin text-amber-500" />}
                     {status === 'deployed' && <CheckCircle className="text-emerald-500" />}
-                    {status === 'error' && <span className="text-red-500 font-bold">X</span>}
+                    {status === 'error' && <span className="text-red-500 font-bold">:(</span>}
 
                     <span className="font-medium">
                         {status === 'uploading' && 'Cloning repository...'}

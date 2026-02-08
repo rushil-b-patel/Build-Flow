@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 const app = express();
 dotenv.config();
 
+const BUCKET_NAME = process.env.BUCKET_NAME || "vercel";
 const s3 = new S3({
     accessKeyId: process.env.ACCESS_KEY_ID,
     secretAccessKey: process.env.SECRET_ACCESS_KEY,
@@ -17,7 +18,7 @@ app.get("/*", async (req, res) => {
     const filePath = req.path;
 
     const contents = await s3.getObject({
-        Bucket: "vercel",
+        Bucket: BUCKET_NAME,
         Key: `dist/${id}${filePath}`
     }).promise();
 
