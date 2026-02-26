@@ -4,7 +4,7 @@ import path from "path";
 import dotenv from "dotenv";
 
 dotenv.config();
-const BUCKET_NAME = process.env.BUCKET_NAME || "vercel";
+const BUCKET_NAME = process.env.BUCKET_NAME || "bucket";
 
 const s3 = new S3({
     accessKeyId: process.env.ACCESS_KEY_ID,

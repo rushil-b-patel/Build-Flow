@@ -6,7 +6,7 @@ dotenv.config();
 
 const accessKeyId = process.env.ACCESS_KEY_ID;
 const secretAccessKey = process.env.SECRET_ACCESS_KEY;
-const bucketName = process.env.BUCKET_NAME || "vercel";
+const bucketName = process.env.BUCKET_NAME || "bucket";
 const endPoint = process.env.END_POINT;
 
 const s3 = new S3({
