@@ -16,9 +16,11 @@
     "@types/express": "^5.0.0",
     "aws-sdk": "^2.1692.0",
     "dotenv": "^17.2.3",
-    "express": "^4.21.1"
+    "express": "^4.21.1",
+    "mime-types": "^3.0.2"
   },
   "devDependencies": {
+    "@types/mime-types": "^3.0.1",
     "@types/node": "^20.0.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.0.0"

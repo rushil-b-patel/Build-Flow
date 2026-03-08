@@ -1,6 +1,7 @@
 import express from "express";
 import { S3 } from "aws-sdk";
 import dotenv from 'dotenv';
+import mime from 'mime-types';
 
 const app = express();
 dotenv.config();
@@ -15,18 +16,26 @@ const s3 = new S3({
 app.get("/*", async (req, res) => {
     const host = req.hostname;
     const id = host.split(".")[0];
-    const filePath = req.path;
+    // resolve root to index.html
+    const filePath = req.path === "/" ? "/index.html" : req.path;
 
-    const contents = await s3.getObject({
-        Bucket: BUCKET_NAME,
-        Key: `dist/${id}${filePath}`
-    }).promise();
+    try {
+        const contents = await s3.getObject({
+            Bucket: BUCKET_NAME,
+            Key: `dist/${id}${filePath}`
+        }).promise();
 
-    const type = filePath.endsWith("html") ? "text/html" : filePath.endsWith("css") ? "text/css" : "application/javascript"
-    res.set("Content-Type", type);
-    res.send(contents.Body);
+        const type = mime.lookup(filePath) || 'application/octet-stream';
+        res.set("Content-Type", type);
+        res.send(contents.Body);
+    } catch (err: any) {
+        if (err.code === 'NoSuchKey') {
+            res.status(404).send('Not found');
+        } else {
+            res.status(500).send('Server error');
+        }
+    }
 })
-
 
 app.listen(3001, () => {
     console.log("request server is live")
