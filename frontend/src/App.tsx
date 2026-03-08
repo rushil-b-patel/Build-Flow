@@ -154,13 +154,13 @@ function App() {
   const projectUrl = uploadId ? `http://${uploadId}.${DEPLOY_URL}/index.html` : '';
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-6 md:p-8 text-center">
+    <div className="w-full max-w-6xl mx-auto p-6 md:p-10 text-center">
       <h1 className="text-5xl font-bold mb-2">
         Build Flow
       </h1>
       <p className="text-slate-600 mb-8">Ship frontend projects from a GitHub URL.</p>
 
-      <div className="max-w-3xl mx-auto p-6 md:p-8 rounded-3xl shadow-xl border border-slate-200 bg-white/90 backdrop-blur">
+      <div className="w-full max-w-5xl mx-auto p-8 md:p-10 rounded-3xl shadow-xl border border-slate-200 bg-white/95 backdrop-blur">
         <div className="flex flex-col items-center gap-4">
           <div className="relative w-full">
             <Github className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
@@ -192,46 +192,57 @@ function App() {
         </div>
 
         {status !== 'idle' && (
-          <div className="mt-8 text-left border-t border-slate-200 pt-6">
-            <div className="flex items-center justify-center gap-2 font-medium">
-              <span>{statusLabel(status)}</span>
-              {isWorking && <Loader2 className="animate-spin text-sky-600" />}
-              {status === 'deployed' && <CheckCircle2 className="text-emerald-600" />}
-              {status === 'error' && <AlertTriangle className="text-rose-600" />}
+        <div className="mt-8 text-left border-t border-slate-200 pt-6">
+          <div className="flex items-center justify-center gap-2 font-medium">
+            <span>{statusLabel(status)}</span>
+            {isWorking && <Loader2 className="animate-spin text-sky-600" />}
+            {status === 'deployed' && <CheckCircle2 className="text-emerald-600" />}
+            {status === 'error' && <AlertTriangle className="text-rose-600" />}
+          </div>
+
+          <div className="mt-5 rounded-xl overflow-hidden border border-slate-700/80 bg-slate-950 shadow-2xl shadow-slate-900/50 ring-1 ring-slate-800/50">
+            <div className="terminal-header px-4 py-2.5 bg-slate-900/90 border-b border-slate-700/80 flex items-center gap-3">
+              <div className="flex gap-1.5">
+                <span className="w-3 h-3 rounded-full bg-red-500/90 shadow-sm" />
+                <span className="w-3 h-3 rounded-full bg-amber-400/90 shadow-sm" />
+                <span className="w-3 h-3 rounded-full bg-emerald-500/90 shadow-sm" />
+              </div>
+              <div className="flex items-center gap-2 text-slate-200">
+                <TerminalSquare size={14} className="text-slate-500" />
+                <span className="font-medium text-xs tracking-wider text-slate-400">Build Logs</span>
+              </div>
+              <span className={`ml-auto text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded ${status === 'deployed' ? 'bg-emerald-500/20 text-emerald-400' : status === 'error' ? 'bg-red-500/20 text-red-400' : isWorking ? 'bg-amber-500/20 text-amber-400 animate-pulse' : 'bg-slate-600/30 text-slate-500'}`}>
+                {status}
+              </span>
             </div>
 
-            <div className="mt-5 rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
-              <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-slate-200">
-                  <TerminalSquare size={17} />
-                  <span className="font-semibold text-sm tracking-wide">Build Logs</span>
-                </div>
-                <span className="text-xs uppercase tracking-wide text-slate-400">{status}</span>
-              </div>
-
-              <div
-                ref={logsBoxRef}
-                className="scrollbar-no max-h-72 overflow-y-auto px-4 py-3 font-mono text-sm space-y-1 text-slate-200"
-              >
+            <div
+              ref={logsBoxRef}
+              className="terminal-content max-h-80 overflow-y-auto px-5 py-4 font-mono text-sm space-y-1 text-slate-300"
+            >
                 {logs.length === 0 && (
-                  <p className="text-slate-500">Waiting for logs...</p>
+                  <p className="text-slate-500 flex items-center gap-3">
+                    <span className="text-emerald-500/80">»</span>
+                    <span>Waiting for build...</span>
+                    <span className="terminal-cursor inline-block w-2 h-4 bg-emerald-400/80 ml-0.5" />
+                  </p>
                 )}
                 {logs.map((line, idx) => (
-                  <p key={`${idx}-${line.slice(0, 16)}`} className="whitespace-pre-wrap break-words leading-relaxed">
-                    <span className="text-slate-500 mr-2">{String(idx + 1).padStart(3, '0')}</span>
-                    {line}
+                  <p key={`${idx}-${line.slice(0, 16)}`} className="whitespace-pre-wrap wrap-break-words leading-relaxed flex">
+                    <span className="text-slate-600 select-none mr-3 shrink-0">{String(idx + 1).padStart(3, '0')}</span>
+                    <span className="text-slate-300">{line}</span>
                   </p>
                 ))}
               </div>
             </div>
 
-            {status === 'error' && (
+          {status === 'error' && (
               <p className="text-rose-600 text-sm mt-4 wrap-break-words">
                 {errorMsg || 'Deployment failed. Check logs for details.'}
               </p>
-            )}
+          )}
 
-            {status === 'deployed' && uploadId && (
+          {status === 'deployed' && uploadId && (
               <div className="mt-6 p-4 bg-sky-50 rounded-xl border border-sky-200 text-sky-800 break-all">
                 <p className="m-0 text-sm mb-2 text-sky-700">Project URL:</p>
                 <div className="flex items-center justify-between gap-4">
@@ -254,7 +265,7 @@ function App() {
                 </div>
               </div>
             )}
-          </div>
+        </div>
         )}
       </div>
     </div>

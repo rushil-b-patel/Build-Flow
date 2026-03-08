@@ -2,6 +2,6 @@
 
 @layer base {
   body {
-    @apply min-h-screen bg-white text-black flex items-center justify-center;
+    @apply min-h-screen bg-slate-50 text-slate-900 flex items-center justify-center;
   }
 }
