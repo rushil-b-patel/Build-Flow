@@ -16,14 +16,16 @@
     "@types/express": "^5.0.0",
     "aws-sdk": "^2.1692.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.6.1",
     "express": "^4.21.1",
+    "pg": "^8.20.0",
     "redis": "^4.7.0",
     "simple-git": "^3.27.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/node": "^20.0.0",
+    "@types/pg": "^8.18.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.0.0"
   }

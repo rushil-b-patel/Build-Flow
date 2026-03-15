@@ -1,4 +1,5 @@
 import { ensureRedisConnection, redis } from "./redis";
+import { updateDeploymentStatusInDB } from "./db";
 
 export async function log(id: string, message: string){
     await ensureRedisConnection();
@@ -19,4 +20,6 @@ export async function setStatus(id: string, state: string, error?: string){
         state,
         ...(error ? {error} : {})
     });
+    // Sync to PostgreSQL
+    await updateDeploymentStatusInDB(id, state, error);
 }
