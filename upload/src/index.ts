@@ -40,7 +40,6 @@ app.get('/auth/github/callback', async (req, res) => {
     try {
         const token = await exchangeCodeForToken(code);
         const user = await getGitHubUser(token);
-        console.log(user);
         res.json({ token, user });
     } catch (err) {
         res.status(401).json({ message: (err as Error).message });
@@ -170,15 +169,12 @@ app.get("/deployments", authMiddleware, async (req, res) => {
 
 // Start
 
-initDB()
-  .then(() => {
+initDB().then(() => {
     app.listen(3000, () => {
-      console.log('upload server is live');
+        console.log('upload server is live');
     });
-  })
-  .catch((err) => {
-    console.error("Failed to initialize database:", err);
+}).catch(() => {
     app.listen(3000, () => {
-      console.log('upload server is live (without database)');
+        console.log('upload server is live (without database)');
     });
-  });
+});

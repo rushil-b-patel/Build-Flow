@@ -79,7 +79,6 @@ export default function Dashboard() {
 
   const fetchDeployments = async () => {
     const token = localStorage.getItem('bf_token');
-    console.warn(token);
     if (!token) {
       setError('Please sign in to view your deployments');
       setLoading(false);

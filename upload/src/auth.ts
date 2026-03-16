@@ -24,9 +24,7 @@ export async function exchangeCodeForToken(code: string): Promise<string> {
       code,
     }),
   });
-  console.log("res -----> ",res);
   const data = (await res.json()) as { access_token?: string; error?: string };
-  console.log("data ----> ",data);
   if (!data.access_token) {
     throw new Error(data.error || "Failed to exchange code for token");
   }
