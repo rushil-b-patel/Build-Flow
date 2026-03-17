@@ -1,14 +1,13 @@
-import { createClient } from "redis";
+import {
+    createRedisConnection,
+    ensureRedisConnection as ensureSharedRedisConnection,
+} from "@shared/redis";
+import { loadEnv } from "@shared/env";
 
-export const redis = createClient({
-    url: process.env.REDIS_URL || "redis://localhost:6379"
-});
+loadEnv();
 
-let connection: Promise<void> | null = null;
+export const redis = createRedisConnection();
 
 export function ensureRedisConnection() {
-    if (!connection) {
-        connection = redis.connect().then(() => undefined);
-    }
-    return connection;
+    return ensureSharedRedisConnection(redis);
 }

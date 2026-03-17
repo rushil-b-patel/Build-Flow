@@ -1,4 +1,7 @@
 import { Request, Response, NextFunction } from "express";
+import { loadEnv } from "@shared/env";
+
+loadEnv();
 
 const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID;
 const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
@@ -49,6 +52,17 @@ export async function getGitHubUser(accessToken: string): Promise<GitHubUser> {
 const tokenCache = new Map<string, { user: GitHubUser; expiry: number }>();
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
+async function resolveGitHubUser(token: string) {
+  const cached = tokenCache.get(token);
+  if (cached && cached.expiry > Date.now()) {
+    return cached.user;
+  }
+
+  const user = await getGitHubUser(token);
+  tokenCache.set(token, { user, expiry: Date.now() + CACHE_TTL });
+  return user;
+}
+
 export async function authMiddleware(
   req: Request,
   res: Response,
@@ -62,16 +76,8 @@ export async function authMiddleware(
 
   const token = authHeader.slice(7);
 
-  // Check cache first
-  const cached = tokenCache.get(token);
-  if (cached && cached.expiry > Date.now()) {
-    (req as any).githubUser = cached.user;
-    return next();
-  }
-
   try {
-    const user = await getGitHubUser(token);
-    tokenCache.set(token, { user, expiry: Date.now() + CACHE_TTL });
+    const user = await resolveGitHubUser(token);
     (req as any).githubUser = user;
     next();
   } catch {
@@ -96,15 +102,9 @@ export async function optionalAuthMiddleware(
   }
 
   const token = authHeader.slice(7);
-  const cached = tokenCache.get(token);
-  if (cached && cached.expiry > Date.now()) {
-    (req as any).githubUser = cached.user;
-    return next();
-  }
 
   try {
-    const user = await getGitHubUser(token);
-    tokenCache.set(token, { user, expiry: Date.now() + CACHE_TTL });
+    const user = await resolveGitHubUser(token);
     (req as any).githubUser = user;
   } catch(error) {
     console.error(error);

@@ -1,77 +1,11 @@
-import { S3 } from "aws-sdk";
-import fs from "fs";
 import path from "path";
-import dotenv from "dotenv";
-
-dotenv.config();
-const BUCKET_NAME = process.env.BUCKET_NAME || "bucket";
-
-const s3 = new S3({
-    accessKeyId: process.env.ACCESS_KEY_ID,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY,
-    endpoint: process.env.END_POINT
-})
+import { downloadPrefixToDirectory, uploadDirectory } from "@shared/storage";
 
 export async function downloadS3Folder(prefix: string) {
-    const allFiles = await s3.listObjectsV2({
-        Bucket: BUCKET_NAME,
-        Prefix: prefix
-    }).promise();
-
-    const allPromises = allFiles.Contents?.map(async ({Key}) => {
-        return new Promise(async (resolve) => {
-            if (!Key) {
-                resolve("");
-                return;
-            }
-            const finalOutputPath = path.join(__dirname, Key);
-            const outputFile = fs.createWriteStream(finalOutputPath);
-            const dirName = path.dirname(finalOutputPath);
-
-            if (!fs.existsSync(dirName)){
-                fs.mkdirSync(dirName, { recursive: true });
-            }
-            s3.getObject({
-                Bucket: BUCKET_NAME,
-                Key
-            }).createReadStream().pipe(outputFile).on("finish", () => {
-                resolve("");
-            })
-        })
-    }) || []
-    await Promise.all(allPromises?.filter(x => x !== undefined));
+    await downloadPrefixToDirectory(prefix, path.join(__dirname, prefix));
 }
 
 export async function copyFinalDist(id: string) {
-    const folderPath = path.join(__dirname, `output/${id}/dist`);
-    const allFiles = getAllFiles(folderPath);
-    await Promise.all(
-        allFiles.map((file) =>
-            uploadFile(`dist/${id}/` + file.slice(folderPath.length + 1), file)
-        )
-    );
-}
-
-const getAllFiles = (folderPath: string) => {
-    let response: string[] = [];
-
-    const allFilesAndFolders = fs.readdirSync(folderPath);
-    allFilesAndFolders.forEach(file => {
-        const fullFilePath = path.join(folderPath, file);
-        if (fs.statSync(fullFilePath).isDirectory()) {
-            response = response.concat(getAllFiles(fullFilePath))
-        } else {
-            response.push(fullFilePath);
-        }
-    });
-    return response;
-}
-
-const uploadFile = async (fileName: string, localFilePath: string) => {
-    const fileContent = fs.readFileSync(localFilePath);
-    await s3.upload({
-        Body: fileContent,
-        Bucket: BUCKET_NAME,
-        Key: fileName,
-    }).promise();
+    const folderPath = path.join(__dirname, "output", id, "dist");
+    await uploadDirectory(`dist/${id}`, folderPath);
 }

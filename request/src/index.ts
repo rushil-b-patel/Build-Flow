@@ -1,33 +1,25 @@
-import express from "express";
-import { S3 } from "aws-sdk";
-import dotenv from 'dotenv';
+import express, { Request, Response } from "express";
 import mime from 'mime-types';
+import { loadEnv } from "@shared/env";
+import { getObjectBuffer } from "@shared/storage";
+
+loadEnv();
 
 const app = express();
-dotenv.config();
+const PORT = Number(process.env.PORT || 3001);
 
-const BUCKET_NAME = process.env.BUCKET_NAME || "bucket";
-const s3 = new S3({
-    accessKeyId: process.env.ACCESS_KEY_ID,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY,
-    endpoint: process.env.END_POINT,
-})
-
-app.get("/*", async (req, res) => {
+app.get("/*", async (req: Request, res: Response) => {
     const host = req.hostname;
     const id = host.split(".")[0];
     // resolve root to index.html
     const filePath = req.path === "/" ? "/index.html" : req.path;
 
     try {
-        const contents = await s3.getObject({
-            Bucket: BUCKET_NAME,
-            Key: `dist/${id}${filePath}`
-        }).promise();
+        const contents = await getObjectBuffer(`dist/${id}${filePath}`);
 
         const type = mime.lookup(filePath) || 'application/octet-stream';
         res.set("Content-Type", type);
-        res.send(contents.Body);
+        res.send(contents);
     } catch (err: any) {
         if (err.code === 'NoSuchKey') {
             res.status(404).send('Not found');
@@ -37,6 +29,6 @@ app.get("/*", async (req, res) => {
     }
 })
 
-app.listen(3001, () => {
+app.listen(PORT, () => {
     console.log("request server is live")
 })

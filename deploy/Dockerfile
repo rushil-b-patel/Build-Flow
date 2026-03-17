@@ -2,14 +2,19 @@ FROM node:20
 
 WORKDIR /usr/src/app
 
-COPY package*.json ./
+COPY deploy/package*.json ./deploy/
 
-RUN npm install
+WORKDIR /usr/src/app/deploy
 
-COPY . .
+RUN npm ci
 
-# executes during image build
+WORKDIR /usr/src/app
+
+COPY shared ./shared
+COPY deploy ./deploy
+
+WORKDIR /usr/src/app/deploy
+
 RUN npm run build
 
-# executes when we run the container
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/deploy/src/index.js"]

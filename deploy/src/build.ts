@@ -1,3 +1,4 @@
+import fs from "fs";
 import { spawn } from "child_process";
 import path from "path";
 import { log, setStatus } from "./log";
@@ -30,10 +31,14 @@ function runCommand(id: string, cwd: string, command: string, args: string[]) {
 
 export async function buildProject(id: string) {
     const cwd = path.join(__dirname, `output/${id}`);
+    const installArgs = fs.existsSync(path.join(cwd, "package-lock.json"))
+        ? ["ci"]
+        : ["install"];
+
     await setStatus(id, "building");
     await log(id, "Starting build process");
-    await log(id, "$ npm install");
-    await runCommand(id, cwd, "npm", ["install"]);
+    await log(id, `$ npm ${installArgs.join(" ")}`);
+    await runCommand(id, cwd, "npm", installArgs);
     await log(id, "$ npm run build");
     await runCommand(id, cwd, "npm", ["run", "build"]);
     await log(id, "Build completed successfully");

@@ -1,7 +1,7 @@
 import { Pool } from "pg";
-import dotenv from "dotenv";
+import { loadEnv } from "@shared/env";
 
-dotenv.config();
+loadEnv();
 
 let pool: Pool | null = null;
 

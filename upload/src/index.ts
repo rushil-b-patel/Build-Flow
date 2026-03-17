@@ -2,9 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import simpleGit from 'simple-git';
 import path from 'path';
-import { createClient } from 'redis';
-import { generate, getAllFiles } from './utils'
-import { uploadFiles } from './upload';
+import { loadEnv } from '@shared/env';
+import { createDeploymentId } from '@shared/id';
+import { createRedisConnection, ensureRedisConnection } from '@shared/redis';
+import { uploadDirectory } from '@shared/storage';
 import { initDB, insertDeployment, updateDeploymentStatus, getDeployments } from './db';
 import {
     exchangeCodeForToken,
@@ -15,14 +16,24 @@ import {
     GITHUB_CLIENT_ID,
 } from './auth';
 
+loadEnv();
+
+const PORT = Number(process.env.PORT || 3000);
+const BUILD_QUEUE_KEY = 'build-queue';
+
 const app = express();
-const redis = createClient({
-    url: process.env.REDIS_URL || "redis://localhost:6379"
-});
-redis.connect();
+const redis = createRedisConnection();
 
 app.use(cors());
 app.use(express.json());
+
+async function syncDeploymentStatus(id: string, status: string, error?: string) {
+    try {
+        await updateDeploymentStatus(id, status, error);
+    } catch (dbErr) {
+        console.error("DB update failed (non-fatal):", dbErr);
+    }
+}
 
 // GitHub OAuth
 
@@ -53,9 +64,9 @@ app.get('/auth/me', authMiddleware, (req, res) => {
 // Deploy
 
 app.post('/deploy', optionalAuthMiddleware, async (req, res) => {
-    const id = generate();
+    const id = createDeploymentId();
     const repoUrl = req.body.repoUrl as string | undefined;
-    const dirName = path.join(__dirname, `output/${id}`)
+    const dirName = path.join(__dirname, 'output', id);
     const githubUser = getOptionalUser(req);
 
     if (!repoUrl) {
@@ -79,26 +90,14 @@ app.post('/deploy', optionalAuthMiddleware, async (req, res) => {
         await redis.hSet(`status:${id}`, { state: "uploading" });
         await redis.rPush(`logs:${id}`, "Repository cloned. Uploading files to object storage");
 
-        try {
-            await updateDeploymentStatus(id, "uploading");
-        } catch (dbErr) {
-            console.error("DB update failed (non-fatal):", dbErr);
-        }
+        await syncDeploymentStatus(id, "uploading");
 
-        const files = getAllFiles(dirName)
-        await Promise.all(files.map((file) => {
-            const relativePath = file.slice(__dirname.length + 1);
-            return uploadFiles(relativePath, file);
-        }));
+        const files = await uploadDirectory(`output/${id}`, dirName);
         await redis.rPush(`logs:${id}`, "Upload complete. Added to build queue");
         await redis.hSet(`status:${id}`, { state: "queued" });
-        await redis.lPush('build-queue', id);
+        await redis.lPush(BUILD_QUEUE_KEY, id);
 
-        try {
-            await updateDeploymentStatus(id, "queued");
-        } catch (dbErr) {
-            console.error("DB update failed (non-fatal):", dbErr);
-        }
+        await syncDeploymentStatus(id, "queued");
 
         res.json({
             id: id,
@@ -111,11 +110,7 @@ app.post('/deploy', optionalAuthMiddleware, async (req, res) => {
         });
         await redis.rPush(`logs:${id}`, `Error: ${(err as Error).message}`);
 
-        try {
-            await updateDeploymentStatus(id, "error", (err as Error).message);
-        } catch (dbErr) {
-            console.error("DB update failed (non-fatal):", dbErr);
-        }
+        await syncDeploymentStatus(id, "error", (err as Error).message);
 
         res.status(500).json({message: (err as Error).message})
     }
@@ -143,11 +138,7 @@ app.get("/status", async (req, res) => {
 
     // Sync status into PostgreSQL
     if (status.state) {
-        try {
-            await updateDeploymentStatus(id, status.state, status.error);
-        } catch (dbErr) {
-            console.error("DB status sync failed (non-fatal):", dbErr);
-        }
+        await syncDeploymentStatus(id, status.state, status.error);
     }
 
     res.json({
@@ -169,12 +160,23 @@ app.get("/deployments", authMiddleware, async (req, res) => {
 
 // Start
 
-initDB().then(() => {
-    app.listen(3000, () => {
-        console.log('upload server is live');
-    });
-}).catch(() => {
-    app.listen(3000, () => {
-        console.log('upload server is live (without database)');
-    });
+async function start() {
+    await ensureRedisConnection(redis);
+
+    try {
+        await initDB();
+        app.listen(PORT, () => {
+            console.log('upload server is live');
+        });
+    } catch (error) {
+        console.error("DB init failed (non-fatal):", error);
+        app.listen(PORT, () => {
+            console.log('upload server is live (without database)');
+        });
+    }
+}
+
+start().catch((error) => {
+    console.error("Failed to start upload service:", error);
+    process.exit(1);
 });

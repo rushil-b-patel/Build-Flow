@@ -2,14 +2,21 @@ FROM node:20
 
 WORKDIR /usr/src/app
 
-COPY package*.json ./
+COPY upload/package*.json ./upload/
 
-RUN npm install
+WORKDIR /usr/src/app/upload
 
-COPY . .
+RUN npm ci
+
+WORKDIR /usr/src/app
+
+COPY shared ./shared
+COPY upload ./upload
+
+WORKDIR /usr/src/app/upload
 
 RUN npm run build
 
 EXPOSE 3000
 
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/upload/src/index.js"]
