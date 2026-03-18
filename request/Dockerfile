@@ -6,10 +6,18 @@ COPY package*.json ./
 
 RUN npm install
 
-COPY . .
+COPY request/package*.json ./request/
+
+RUN npm install --prefix request
+
+COPY packages ./packages
+
+COPY request ./request
+
+WORKDIR /usr/src/app/request
 
 RUN npm run build
 
 EXPOSE 3001
 
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/request/src/index.js"]

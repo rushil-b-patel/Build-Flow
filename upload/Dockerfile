@@ -6,10 +6,18 @@ COPY package*.json ./
 
 RUN npm install
 
-COPY . .
+COPY upload/package*.json ./upload/
+
+RUN npm install --prefix upload
+
+COPY packages ./packages
+
+COPY upload ./upload
+
+WORKDIR /usr/src/app/upload
 
 RUN npm run build
 
 EXPOSE 3000
 
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/upload/src/index.js"]

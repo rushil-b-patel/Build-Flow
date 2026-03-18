@@ -1,77 +1,48 @@
-import { S3 } from "aws-sdk";
-import fs from "fs";
+import { promises as fs } from "fs";
 import path from "path";
-import dotenv from "dotenv";
+import { listFilesRecursively } from "@backend-core/fs";
+import {
+    getObjectBytes,
+    listObjectKeys,
+    putObjectFromFile,
+} from "@backend-core/s3";
 
-dotenv.config();
-const BUCKET_NAME = process.env.BUCKET_NAME || "bucket";
+export async function downloadS3Folder(prefix: string, destinationDir: string) {
+    const normalizedPrefix = prefix.endsWith("/") ? prefix : `${prefix}/`;
+    const keys = await listObjectKeys(normalizedPrefix);
 
-const s3 = new S3({
-    accessKeyId: process.env.ACCESS_KEY_ID,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY,
-    endpoint: process.env.END_POINT
-})
-
-export async function downloadS3Folder(prefix: string) {
-    const allFiles = await s3.listObjectsV2({
-        Bucket: BUCKET_NAME,
-        Prefix: prefix
-    }).promise();
-
-    const allPromises = allFiles.Contents?.map(async ({Key}) => {
-        return new Promise(async (resolve) => {
-            if (!Key) {
-                resolve("");
+    await Promise.all(
+        keys.map(async (key) => {
+            const relativePath = key.slice(normalizedPrefix.length);
+            if (!relativePath) {
                 return;
             }
-            const finalOutputPath = path.join(__dirname, Key);
-            const outputFile = fs.createWriteStream(finalOutputPath);
-            const dirName = path.dirname(finalOutputPath);
 
-            if (!fs.existsSync(dirName)){
-                fs.mkdirSync(dirName, { recursive: true });
+            const bytes = await getObjectBytes(key);
+            if (!bytes) {
+                return;
             }
-            s3.getObject({
-                Bucket: BUCKET_NAME,
-                Key
-            }).createReadStream().pipe(outputFile).on("finish", () => {
-                resolve("");
-            })
-        })
-    }) || []
-    await Promise.all(allPromises?.filter(x => x !== undefined));
-}
 
-export async function copyFinalDist(id: string) {
-    const folderPath = path.join(__dirname, `output/${id}/dist`);
-    const allFiles = getAllFiles(folderPath);
-    await Promise.all(
-        allFiles.map((file) =>
-            uploadFile(`dist/${id}/` + file.slice(folderPath.length + 1), file)
-        )
+            const outputPath = path.join(destinationDir, relativePath);
+            await fs.mkdir(path.dirname(outputPath), { recursive: true });
+            await fs.writeFile(outputPath, bytes);
+        }),
     );
 }
 
-const getAllFiles = (folderPath: string) => {
-    let response: string[] = [];
+export async function copyFinalDist(id: string, workspaceDir: string) {
+    const distDir = path.join(workspaceDir, "dist");
+    const files = await listFilesRecursively(distDir);
 
-    const allFilesAndFolders = fs.readdirSync(folderPath);
-    allFilesAndFolders.forEach(file => {
-        const fullFilePath = path.join(folderPath, file);
-        if (fs.statSync(fullFilePath).isDirectory()) {
-            response = response.concat(getAllFiles(fullFilePath))
-        } else {
-            response.push(fullFilePath);
-        }
-    });
-    return response;
-}
-
-const uploadFile = async (fileName: string, localFilePath: string) => {
-    const fileContent = fs.readFileSync(localFilePath);
-    await s3.upload({
-        Body: fileContent,
-        Bucket: BUCKET_NAME,
-        Key: fileName,
-    }).promise();
+    await Promise.all(
+        files.map((filePath) => {
+            const relativePath = path
+                .relative(distDir, filePath)
+                .replace(/\\/g, "/");
+            return putObjectFromFile(
+                path.posix.join("dist", id, relativePath),
+                filePath,
+            );
+        }),
+    );
 }
