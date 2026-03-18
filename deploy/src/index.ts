@@ -1,36 +1,65 @@
-import { commandOptions } from 'redis';
-import { copyFinalDist, downloadS3Folder } from './aws';
-import { buildProject } from './build';
-import { log, setStatus } from './log';
-import { ensureRedisConnection, redis } from './redis';
+import "dotenv/config";
+import { promises as fs } from "fs";
+import os from "os";
+import path from "path";
+import { dequeueBuild } from "@backend-core/build-queue";
+import {
+    initDeploymentStore,
+    updateDeploymentState,
+} from "@backend-core/deployments";
+import { ensureRedisConnection } from "@backend-core/redis";
+import { copyFinalDist, downloadS3Folder } from "./aws";
+import { buildProject } from "./build";
+import { appendDeploymentLog } from "@backend-core/logs";
 
-async function main(){
-    await ensureRedisConnection();
-    while(1){
-        const response = await redis.brPop(
-            commandOptions({isolated: true}),
-            'build-queue',
-            0
-        );
+function getWorkspaceRoot() {
+    return (
+        process.env.DEPLOY_WORK_ROOT ||
+        path.join(os.tmpdir(), "build-flow-deploy")
+    );
+}
 
-        if (!response?.element) {
-            continue;
-        }
+async function cleanupStaleWorkspaces() {
+    await fs.rm(getWorkspaceRoot(), { recursive: true, force: true });
+}
 
-        const id = response.element;
-        try{
-            await log(id, "Build picked up by worker");
-            await downloadS3Folder(`output/${id}`)
-            await buildProject(id);
-            await copyFinalDist(id);
-            await setStatus(id, "deployed");
-            await log(id, "Deployment completed successfully");
-        } catch(err){
-            const message = (err as Error).message;
-            await setStatus(id, "error", message);
-            await log(id, `Deployment failed: ${message}`);
-        }
+async function processDeployment(id: string) {
+    const workspaceDir = path.join(getWorkspaceRoot(), id);
+
+    await fs.rm(workspaceDir, { recursive: true, force: true });
+    await fs.mkdir(workspaceDir, { recursive: true });
+
+    try {
+        await appendDeploymentLog(id, "Build picked up by worker");
+        await downloadS3Folder(`output/${id}`, workspaceDir);
+        await buildProject(id, workspaceDir);
+        await copyFinalDist(id, workspaceDir);
+        await updateDeploymentState(id, "deployed");
+        await appendDeploymentLog(id, "Deployment completed successfully");
+    } catch (error) {
+        const message = (error as Error).message;
+        await updateDeploymentState(id, "error", message);
+        await appendDeploymentLog(id, `Deployment failed: ${message}`);
+    } finally {
+        await fs.rm(workspaceDir, { recursive: true, force: true });
     }
 }
 
-main();
+async function main() {
+    await Promise.all([ensureRedisConnection(), initDeploymentStore()]);
+    await cleanupStaleWorkspaces();
+
+    while (true) {
+        const id = await dequeueBuild();
+        if (!id) {
+            continue;
+        }
+
+        await processDeployment(id);
+    }
+}
+
+main().catch((error) => {
+    console.error("Deploy worker failed to start", error);
+    process.exit(1);
+});

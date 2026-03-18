@@ -6,10 +6,18 @@ COPY package*.json ./
 
 RUN npm install
 
-COPY . .
+COPY deploy/package*.json ./deploy/
 
-# executes during image build
+RUN npm install --prefix deploy
+
+COPY packages ./packages
+
+COPY deploy ./deploy
+
+WORKDIR /usr/src/app/deploy
+
+#executes during image build
 RUN npm run build
 
-# executes when we run the container
-CMD ["node", "dist/index.js"]
+#executes when container starts
+CMD ["node", "dist/deploy/src/index.js"]

@@ -122,7 +122,6 @@ ACCESS_KEY_ID=...
 SECRET_ACCESS_KEY=...
 END_POINT=...
 BUCKET_NAME=bucket
-TOKEN_VALUE=...
 ```
 
 `frontend/.env`
@@ -135,7 +134,6 @@ VITE_DEPLOY_URL=localhost:3001
 Notes:
 
 - `REDIS_URL` is set in `docker-compose.yml` for `upload` and `deploy`.
-- `TOKEN_VALUE` exists in env files but is not used in current code.
 
 ## Local Development
 
