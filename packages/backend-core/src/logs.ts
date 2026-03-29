@@ -1,4 +1,4 @@
-import { ensureRedisConnection } from "./redis";
+import { ensureRedisConnection } from "./redis-connection";
 
 function normalizeLogLines(message: string): string[] {
     return message

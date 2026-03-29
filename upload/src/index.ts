@@ -2,7 +2,7 @@ import "dotenv/config";
 import cors from "cors";
 import express from "express";
 import { initDeploymentStore } from "@backend-core/deployments";
-import { ensureRedisConnection } from "@backend-core/redis";
+import { ensureRedisConnection } from "@backend-core/redis-connection";
 import {
     authMeHandler,
     getGitHubAuthUrlHandler,
@@ -11,6 +11,7 @@ import {
 } from "@upload/controllers/auth-controller";
 import {
     createDeploymentHandler,
+    getDeploymentLogStreamHandler,
     getDeploymentLogsHandler,
     getDeploymentsHandler,
     getDeploymentStatusHandler,
@@ -37,6 +38,7 @@ app.post("/auth/logout", authMiddleware, logoutHandler);
 
 app.post("/deploy", optionalAuthMiddleware, createDeploymentHandler);
 app.get("/logs", getDeploymentLogsHandler);
+app.get("/logs/stream", getDeploymentLogStreamHandler);
 app.get("/status", getDeploymentStatusHandler);
 app.get("/deployments", authMiddleware, getDeploymentsHandler);
 

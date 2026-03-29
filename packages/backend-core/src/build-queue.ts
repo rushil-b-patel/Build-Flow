@@ -1,5 +1,5 @@
 import { commandOptions } from "redis";
-import { ensureRedisConnection } from "./redis";
+import { ensureRedisConnection } from "./redis-connection";
 
 const BUILD_QUEUE_KEY = "build-queue";
 

@@ -1,206 +1,59 @@
-# Build Flow
+# Build Flow 🚀
 
-Build Flow is a lightweight Vercel-style pipeline for static frontend deployments (Vite/React style apps).
-You submit a GitHub repository URL, the system builds it, uploads artifacts, and serves it from a generated subdomain.
+Build Flow is a lightweight, Vercel-style deployment pipeline. If you have a static frontend app (like a React or Vite project) on GitHub, Build Flow can automatically build it and put it on the internet for you!
 
-### What a user can do
+## What does it do?
 
-1. Paste a GitHub repository URL in the frontend.
-2. Click deploy.
-3. Watch live status and build logs.
-4. Open deployed output at `http://<deployment-id>.<deploy-domain>/index.html`.
+1. You paste a GitHub repository link into our website.
+2. You click **Deploy**.
+3. You watch the live build logs as our system sets up your app.
+4. You get a live URL to share your website with the world!
 
-### User-visible states
+## How it works (The Architecture)
 
-The UI can show:
+Think of Build Flow as a factory with different departments working together. It is broken down into four main parts (microservices):
 
-- `cloning`
-- `uploading`
-- `queued`
-- `building`
-- `deployed`
-- `error`
+1. **Frontend (`frontend/`)**: This is the dashboard website you see. It's built with React and Vite. You use this to submit your GitHub links and track your deployment status.
+2. **Upload Service (`upload/`)**: The "receptionist." When you submit a link, this service downloads your code, saves it to cloud storage (like AWS S3), and puts a "build this app" ticket into a to-do list.
+3. **Deploy Worker (`deploy/`)**: The "construction worker." This service constantly watches the to-do list. When it sees your ticket, it downloads your code, installs the dependencies (`npm install`), builds the final website (`npm run build`), and saves the finished product back to cloud storage.
+4. **Request Service (`request/`)**: The "delivery driver." When someone visits your newly generated website link, this service grabs your finished website files from storage and sends them to the visitor's browser.
 
-## Technical Architecture
+### The Databases
+- **Redis**: Acts as our fast "to-do list" (queue) for the Deploy Worker, and stores the live streaming logs you see while your app is building.
+- **Postgres**: Our main database that saves user information, project details, and the history of deployments.
 
-### Services
+## How to run it on your own computer
 
-- `frontend/`: React + Vite UI.
-- `upload/`: API service for clone/upload/enqueue and status/log reads.
-- `deploy/`: background worker that consumes queue jobs and builds.
-- `request/`: serves deployed static files by subdomain.
-- `redis`: queue + deployment metadata store.
+The easiest way to run the entire factory on your computer is using **Docker**.
 
-### End-to-end flow
-
-1. `POST /deploy` hits upload service.
-2. Upload service generates an `id`, clones repo to `output/<id>`.
-3. Upload service uploads source files to object storage under `output/<id>/...`.
-4. Upload service sets status to `queued` and pushes `id` to Redis list `build-queue`.
-5. Deploy worker downloads source from object storage.
-6. Deploy worker runs:
-   - `npm install`
-   - `npm run build`
-7. Deploy worker uploads built artifacts to `dist/<id>/...`.
-8. Deploy worker sets status to `deployed` (or `error` on failure).
-9. Request service serves files from `dist/<id><path>` using subdomain-derived `id`.
-
-### Redis data model
-
-- Queue:
-  - `build-queue` (Redis list)
-- Status:
-  - `status:<id>` (Redis hash)
-  - fields: `state`, optional `error`
-- Logs:
-  - `logs:<id>` (Redis list of lines)
-
-## API Contract (Upload Service)
-
-### `POST /deploy`
-
-Request:
-
-```json
-{
-  "repoUrl": "https://github.com/user/repo"
-}
-```
-
-Success response:
-
-```json
-{
-  "id": "abc123",
-  "files": ["..."]
-}
-```
-
-Error response:
-
-```json
-{
-  "message": "..."
-}
-```
-
-### `GET /status?id=<id>`
-
-Response:
-
-```json
-{
-  "status": {
-    "state": "queued | building | deployed | error | ...",
-    "error": "optional error message"
-  }
-}
-```
-
-Notes:
-
-- Unknown IDs currently return an empty object: `{ "status": {} }`.
-
-### `GET /logs?id=<id>`
-
-Response:
-
-```json
-{
-  "logs": ["line 1", "line 2"]
-}
-```
-
-## Environment Variables
-
-Create `.env` files in each service:
-
-`upload/.env` & `deploy/.env` & `request/.env`
-
+### 1. Set up Environment Variables
+Create `.env` files in each service folder (`upload/.env`, `deploy/.env`, `request/.env`) with your cloud storage credentials:
 ```bash
-ACCESS_KEY_ID=...
-SECRET_ACCESS_KEY=...
-END_POINT=...
-BUCKET_NAME=bucket
+ACCESS_KEY_ID=your_key
+SECRET_ACCESS_KEY=your_secret
+END_POINT=your_endpoint
+BUCKET_NAME=your_bucket
 ```
 
-`frontend/.env`
-
+For the `frontend/.env`, tell it where the local services are running:
 ```bash
 VITE_BASE_URL=http://localhost:3000
 VITE_DEPLOY_URL=localhost:3001
 ```
 
-Notes:
-
-- `REDIS_URL` is set in `docker-compose.yml` for `upload` and `deploy`.
-
-## Local Development
-
-### Docker
-
-From repo root:
-
+### 2. Start the Backend Services
+Open your terminal in the root of the project and run:
 ```bash
 docker compose up --build
 ```
+This single command spins up Redis, Postgres, the Upload Service, the Deploy Worker, and the Request Service all at once!
 
-Services:
-
-- Redis: `localhost:6380` -> container `6379`
-- Upload API: `localhost:3000`
-- Request service: `localhost:3001`
-- Deploy worker: background
-
-Frontend separately:
-
+### 3. Start the Frontend
+In a new terminal window, go to the frontend folder and start the React app:
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-### Manual
-
-Run Redis locally, then in separate terminals:
-
-```bash
-cd upload && npm install && npm run dev
-cd deploy && npm install && npm run dev
-cd request && npm install && npm run dev
-cd frontend && npm install && npm run dev
-```
-
-## Troubleshooting
-
-### `GET /logs` returns 404
-
-Most likely cause: running container has stale code.
-
-Rebuild and recreate services:
-
-```bash
-docker compose up -d --build --force-recreate --no-deps upload deploy
-```
-
-Then verify:
-
-```bash
-curl -i "http://localhost:3000/logs?id=test"
-```
-
-### Deployment URL format
-
-Frontend generates:
-
-```text
-http://<id>.<VITE_DEPLOY_URL>/index.html
-```
-
-With `VITE_DEPLOY_URL=localhost:3001`, example:
-
-```text
-http://abc123.localhost:3001/index.html
-```
-
-Your local DNS/routing must support this host pattern.
+Now, open your browser and go to the local frontend link. You're ready to deploy!

@@ -1,6 +1,6 @@
 import crypto from "crypto";
-import type { SessionPayload } from "@shared/auth";
-import { ensureRedisConnection } from "./redis";
+import type { SessionPayload } from "@packages/shared/auth";
+import { ensureRedisConnection } from "./redis-connection";
 
 export const SESSION_COOKIE_NAME = "bf_session";
 const DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;

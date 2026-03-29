@@ -18,6 +18,7 @@ export default function AuthCallback() {
 
         (async () => {
             try {
+                debugger;
                 const response = await fetch(
                     `${API_BASE_URL}/auth/github/callback?code=${code}`,
                     {

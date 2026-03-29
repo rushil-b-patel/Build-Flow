@@ -7,7 +7,7 @@ import {
     initDeploymentStore,
     updateDeploymentState,
 } from "@backend-core/deployments";
-import { ensureRedisConnection } from "@backend-core/redis";
+import { ensureRedisConnection } from "@backend-core/redis-connection";
 import { copyFinalDist, downloadS3Folder } from "./aws";
 import { buildProject } from "./build";
 import { appendDeploymentLog } from "@backend-core/logs";
@@ -48,6 +48,7 @@ async function processDeployment(id: string) {
 async function main() {
     await Promise.all([ensureRedisConnection(), initDeploymentStore()]);
     await cleanupStaleWorkspaces();
+    console.log("Deploy worker ready — blocking on Redis list build-queue");
 
     while (true) {
         const id = await dequeueBuild();

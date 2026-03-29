@@ -4,11 +4,9 @@ import os from "os";
 import path from "path";
 import {
     createDeployment,
-    getDeploymentStatus,
-    listDeployments,
     updateDeploymentState,
 } from "@backend-core/deployments";
-import { appendDeploymentLog, getDeploymentLogs } from "@backend-core/logs";
+import { appendDeploymentLog } from "@backend-core/logs";
 import type { AuthenticatedUser } from "@packages/shared/auth";
 import { uploadSourceDirectory } from "@upload/infrastructure/source-storage";
 import { enqueueBuild } from "@backend-core/build-queue";

@@ -4,7 +4,21 @@ import {
     isDeploymentState,
     type DeploymentState,
     type DeploymentStatusPayload,
-} from "@shared/deployment";
+} from "@packages/shared/deployment";
+import { ensureRedisConnection } from "./redis-connection";
+
+/** Mirrors Postgres status into Redis for SSE (`/logs/stream` reads `status:${id}`). */
+async function mirrorDeploymentStatusToRedis(
+    id: string,
+    state: DeploymentState,
+) {
+    try {
+        const redis = await ensureRedisConnection();
+        await redis.hSet(`status:${id}`, { state });
+    } catch (err) {
+        console.error("Failed to mirror deployment status to Redis", err);
+    }
+}
 
 export interface DeploymentRecord {
     id: string;
@@ -82,6 +96,7 @@ export async function createDeployment(
      VALUES ($1, $2, $3, $4)`,
         [id, repoUrl, "cloning", githubUser || null],
     );
+    await mirrorDeploymentStatusToRedis(id, "cloning");
 }
 
 export async function updateDeploymentState(
@@ -97,6 +112,7 @@ export async function updateDeploymentState(
       WHERE id = $3`,
         [status, error ?? null, id],
     );
+    await mirrorDeploymentStatusToRedis(id, status);
 }
 
 export async function getDeploymentStatus(

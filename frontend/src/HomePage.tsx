@@ -29,72 +29,101 @@ export default function HomePage() {
     const [status, setStatus] = useState<UiDeploymentState>("idle");
     const [logs, setLogs] = useState<string[]>([]);
     const [errorMsg, setErrorMsg] = useState("");
-    const pollingRef = useRef<number | null>(null);
+    const eventSourceRef = useRef<EventSource | null>(null);
     const logsBoxRef = useRef<HTMLDivElement | null>(null);
-    const logsEndpointUnavailableRef = useRef(false);
 
-    const stopPolling = () => {
-        if (pollingRef.current !== null) {
-            window.clearInterval(pollingRef.current);
-            pollingRef.current = null;
+    const stopStreaming = () => {
+        if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+            eventSourceRef.current = null;
         }
     };
 
-    const pollDeployment = async (id: string): Promise<UiDeploymentState> => {
-        const statusRes = await api.get<{ status: DeploymentStatusPayload }>(
-            "/status",
-            {
-                params: { id },
-            },
-        );
-        const statusPayload = statusRes.data.status;
-        const currentStatus = normalizeState(statusPayload?.state);
+    const startLogStream = (id: string) => {
+        stopStreaming();
+        const es = new EventSource(`${API_BASE_URL}/logs/stream?id=${id}`);
+        eventSourceRef.current = es;
 
-        setStatus(currentStatus);
-
-        try {
-            const logsRes = await api.get<{ logs: string[] }>("/logs", {
-                params: { id },
-            });
-            logsEndpointUnavailableRef.current = false;
-            setLogs(logsRes.data.logs || []);
-        } catch (err) {
-            if (axios.isAxiosError(err) && err.response?.status === 404) {
-                if (!logsEndpointUnavailableRef.current && logs.length === 0) {
-                    logsEndpointUnavailableRef.current = true;
-                    setLogs([
-                        "Build logs endpoint is not available on the running upload service.",
-                        "Rebuild and restart the upload service to enable /logs.",
-                    ]);
+        es.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.log) {
+                    setLogs((prev) => [...prev, data.log]);
                 }
-            } else {
-                console.error("Logs polling error", err);
+                if (data.status) {
+                    const currentStatus = normalizeState(data.status);
+                    setStatus(currentStatus);
+                    if (currentStatus === "deployed" || currentStatus === "error") {
+                        stopStreaming();
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to parse SSE message", err);
             }
-        }
+        };
 
-        if (statusPayload?.error) {
-            setErrorMsg(statusPayload.error);
-        }
-
-        if (currentStatus === "deployed" || currentStatus === "error") {
-            stopPolling();
-        }
-
-        return currentStatus;
+        es.onerror = (err) => {
+            console.error("SSE error", err);
+        };
     };
 
-    const startPolling = (id: string) => {
-        stopPolling();
-        pollingRef.current = window.setInterval(() => {
-            void pollDeployment(id).catch((err) => {
-                console.error("Polling error", err);
+    const checkInitialStatus = async (id: string) => {
+        try {
+            const statusRes = await api.get<{ status: DeploymentStatusPayload }>("/status", {
+                params: { id },
             });
-        }, 1500);
+            const statusPayload = statusRes.data.status;
+            if (statusPayload) {
+                setStatus(normalizeState(statusPayload.state));
+                if (statusPayload.error) {
+                    setErrorMsg(statusPayload.error);
+                }
+            }
+        } catch (err) {
+            console.error("Failed to fetch initial status", err);
+        }
     };
 
     useEffect(() => {
-        return () => stopPolling();
+        return () => stopStreaming();
     }, []);
+
+    /** Postgres is the source of truth; poll while the deploy worker may be catching up (SSE alone can miss status if Redis was out of sync). */
+    useEffect(() => {
+        if (!uploadId) return;
+        const busy =
+            status === "cloning" ||
+            status === "uploading" ||
+            status === "queued" ||
+            status === "building";
+        if (!busy) return;
+
+        const id = uploadId;
+        const interval = setInterval(() => {
+            void (async () => {
+                try {
+                    const statusRes = await api.get<{
+                        status: DeploymentStatusPayload;
+                    }>("/status", { params: { id } });
+                    const payload = statusRes.data.status;
+                    if (payload?.state) {
+                        const next = normalizeState(payload.state);
+                        setStatus(next);
+                        if (payload.error) {
+                            setErrorMsg(payload.error);
+                        }
+                        if (next === "deployed" || next === "error") {
+                            stopStreaming();
+                        }
+                    }
+                } catch {
+                    /* ignore transient /status errors while polling */
+                }
+            })();
+        }, 2000);
+
+        return () => clearInterval(interval);
+    }, [uploadId, status]);
 
     useEffect(() => {
         if (logsBoxRef.current) {
@@ -108,8 +137,7 @@ export default function HomePage() {
         setStatus("cloning");
         setLogs([]);
         setErrorMsg("");
-        logsEndpointUnavailableRef.current = false;
-        stopPolling();
+        stopStreaming();
 
         try {
             const response = await api.post<{ id: string }>("/deploy", {
@@ -117,10 +145,8 @@ export default function HomePage() {
             });
             const { id } = response.data;
             setUploadId(id);
-            const current = await pollDeployment(id);
-            if (current !== "deployed" && current !== "error") {
-                startPolling(id);
-            }
+            await checkInitialStatus(id);
+            startLogStream(id);
         } catch (err) {
             setStatus("error");
             setErrorMsg(
