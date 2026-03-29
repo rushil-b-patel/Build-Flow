@@ -9,12 +9,14 @@ import {
     githubCallbackHandler,
     logoutHandler,
 } from "@upload/controllers/auth-controller";
+import { listGitHubBranchesHandler } from "@upload/controllers/github-branches-controller";
 import {
     createDeploymentHandler,
     getDeploymentLogStreamHandler,
     getDeploymentLogsHandler,
     getDeploymentsHandler,
     getDeploymentStatusHandler,
+    redeployDeploymentHandler,
 } from "@upload/controllers/deployments-controller";
 import {
     authMiddleware,
@@ -36,7 +38,9 @@ app.get("/auth/github/callback", githubCallbackHandler);
 app.get("/auth/me", authMiddleware, authMeHandler);
 app.post("/auth/logout", authMiddleware, logoutHandler);
 
+app.get("/github/branches", optionalAuthMiddleware, listGitHubBranchesHandler);
 app.post("/deploy", optionalAuthMiddleware, createDeploymentHandler);
+app.post("/redeploy/:id", authMiddleware, redeployDeploymentHandler);
 app.get("/logs", getDeploymentLogsHandler);
 app.get("/logs/stream", getDeploymentLogStreamHandler);
 app.get("/status", getDeploymentStatusHandler);

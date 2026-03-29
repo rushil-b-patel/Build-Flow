@@ -8,12 +8,15 @@ export async function enqueueBuild(deploymentId: string) {
     await redis.lPush(BUILD_QUEUE_KEY, deploymentId);
 }
 
-export async function dequeueBuild(): Promise<string | null> {
+/** @param timeoutSeconds 0 = block indefinitely (use sparingly; prefer timeout for shutdown loops) */
+export async function dequeueBuild(
+    timeoutSeconds = 0,
+): Promise<string | null> {
     const redis = await ensureRedisConnection();
     const response = await redis.brPop(
         commandOptions({ isolated: true }),
         BUILD_QUEUE_KEY,
-        0,
+        timeoutSeconds,
     );
 
     return response?.element ?? null;

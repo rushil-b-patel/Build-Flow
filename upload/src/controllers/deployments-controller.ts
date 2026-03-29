@@ -1,5 +1,9 @@
 import type { Request, Response } from "express";
-import { createDeploymentFromRepository } from "@upload/services/deployment-service";
+import {
+    createDeploymentFromRepository,
+    redeployExistingDeployment,
+    SlugTakenError,
+} from "@upload/services/deployment-service";
 import {
     getDeploymentStatus,
     listDeployments,
@@ -8,19 +12,67 @@ import { getRedisClient } from "@backend-core/redis-connection";
 import { getDeploymentLogs } from "@backend-core/logs";
 
 export async function createDeploymentHandler(req: Request, res: Response) {
-    const repoUrl = req.body.repoUrl as string | undefined;
+    const rawRepo = req.body?.repoUrl;
+    const repoUrl =
+        typeof rawRepo === "string" ? rawRepo.trim() : "";
     if (!repoUrl) {
-        res.status(400).json({ message: "repoUrl is required" });
+        res.status(400).json({
+            message:
+                "repoUrl is required (send a JSON body with { \"repoUrl\": \"https://github.com/owner/repo\" })",
+        });
         return;
     }
+    const branch =
+        typeof req.body.branch === "string" ? req.body.branch : undefined;
+    const commitSha =
+        typeof req.body.commitSha === "string" ? req.body.commitSha : undefined;
+    const slug =
+        typeof req.body.slug === "string" ? req.body.slug : undefined;
     try {
         const deployment = await createDeploymentFromRepository(
             repoUrl,
             req.user,
+            { branch, commitSha, slug },
         );
         res.json(deployment);
     } catch (error) {
-        res.status(500).json({ message: (error as Error).message });
+        if (error instanceof SlugTakenError) {
+            res.status(409).json({ message: error.message });
+            return;
+        }
+        const msg = (error as Error).message;
+        if (msg.startsWith("Invalid slug")) {
+            res.status(400).json({ message: msg });
+            return;
+        }
+        res.status(500).json({ message: msg });
+    }
+}
+
+export async function redeployDeploymentHandler(req: Request, res: Response) {
+    const id = req.params.id;
+    if (!id) {
+        res.status(400).json({ message: "id is required" });
+        return;
+    }
+    if (!req.user) {
+        res.status(401).json({ message: "Sign in to redeploy" });
+        return;
+    }
+    try {
+        const deployment = await redeployExistingDeployment(id, req.user);
+        res.json(deployment);
+    } catch (error) {
+        const msg = (error as Error).message;
+        if (msg === "NOT_FOUND") {
+            res.status(404).json({ message: "Deployment not found" });
+            return;
+        }
+        if (msg === "FORBIDDEN") {
+            res.status(403).json({ message: "Not allowed to redeploy this project" });
+            return;
+        }
+        res.status(500).json({ message: msg });
     }
 }
 

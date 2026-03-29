@@ -7,6 +7,7 @@ import {
     Clock,
     GitBranch,
     Loader2,
+    RefreshCw,
     Rocket,
     XCircle,
 } from "lucide-react";
@@ -21,6 +22,9 @@ interface Deployment {
     created_at: string;
     updated_at: string;
     github_user: string | null;
+    git_branch: string | null;
+    commit_sha: string | null;
+    slug: string | null;
 }
 
 function relativeTime(dateStr: string): string {
@@ -94,6 +98,10 @@ function statusConfig(status: DeploymentState) {
     }
 }
 
+function siteHost(d: Deployment): string {
+    return d.slug || d.id;
+}
+
 function repoName(url: string): string {
     try {
         const u = new URL(url);
@@ -111,6 +119,8 @@ export default function Dashboard() {
     const [deployments, setDeployments] = useState<Deployment[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [redeployingId, setRedeployingId] = useState<string | null>(null);
+    const [redeployError, setRedeployError] = useState("");
 
     useEffect(() => {
         void fetchDeployments();
@@ -140,6 +150,36 @@ export default function Dashboard() {
         }
 
         setLoading(false);
+    };
+
+    const handleRedeploy = async (deploymentId: string) => {
+        setRedeployError("");
+        setRedeployingId(deploymentId);
+        try {
+            const res = await fetch(
+                `${API_BASE_URL}/redeploy/${deploymentId}`,
+                {
+                    method: "POST",
+                    credentials: "include",
+                },
+            );
+            if (res.status === 401) {
+                notifyAuthStateChanged();
+                setRedeployError("Please sign in to redeploy");
+                return;
+            }
+            if (!res.ok) {
+                const data = (await res.json().catch(() => ({}))) as {
+                    message?: string;
+                };
+                throw new Error(data.message || "Redeploy failed");
+            }
+            await fetchDeployments();
+        } catch (err) {
+            setRedeployError((err as Error).message);
+        } finally {
+            setRedeployingId(null);
+        }
     };
 
     if (loading) {
@@ -187,7 +227,7 @@ export default function Dashboard() {
 
     return (
         <div className="w-full max-w-6xl mx-auto p-6 md:p-10">
-            <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
                 <h2 className="text-3xl font-bold">Deployment History</h2>
                 <Link
                     to="/"
@@ -196,6 +236,9 @@ export default function Dashboard() {
                     <Rocket size={16} /> New Deploy
                 </Link>
             </div>
+            {redeployError && (
+                <p className="text-sm text-rose-600 mb-6">{redeployError}</p>
+            )}
 
             {deployments.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 p-12 text-center">
@@ -212,7 +255,9 @@ export default function Dashboard() {
                     {deployments.map((deployment) => {
                         const cfg = statusConfig(deployment.status);
                         const Icon = cfg.icon;
-                        const projectUrl = `http://${deployment.id}.${DEPLOY_URL}/index.html`;
+                        const host = siteHost(deployment);
+                        const projectUrl = `http://${host}.${DEPLOY_URL}/index.html`;
+                        const isRedeploying = redeployingId === deployment.id;
 
                         return (
                             <div
@@ -259,6 +304,30 @@ export default function Dashboard() {
                                             <ArrowUpRight size={12} />
                                         </a>
                                     )}
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            void handleRedeploy(deployment.id)
+                                        }
+                                        disabled={
+                                            isRedeploying ||
+                                            deployment.status === "cloning" ||
+                                            deployment.status === "uploading" ||
+                                            deployment.status === "queued" ||
+                                            deployment.status === "building"
+                                        }
+                                        className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                        {isRedeploying ? (
+                                            <Loader2
+                                                size={14}
+                                                className="animate-spin"
+                                            />
+                                        ) : (
+                                            <RefreshCw size={14} />
+                                        )}
+                                        Redeploy
+                                    </button>
                                     {deployment.error && (
                                         <p className="text-xs text-rose-500 truncate">
                                             {deployment.error}
@@ -297,6 +366,35 @@ export default function Dashboard() {
                                                 Visit <ArrowUpRight size={12} />
                                             </a>
                                         )}
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                void handleRedeploy(
+                                                    deployment.id,
+                                                )
+                                            }
+                                            disabled={
+                                                isRedeploying ||
+                                                deployment.status ===
+                                                    "cloning" ||
+                                                deployment.status ===
+                                                    "uploading" ||
+                                                deployment.status ===
+                                                    "queued" ||
+                                                deployment.status === "building"
+                                            }
+                                            className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed"
+                                        >
+                                            {isRedeploying ? (
+                                                <Loader2
+                                                    size={14}
+                                                    className="animate-spin"
+                                                />
+                                            ) : (
+                                                <RefreshCw size={14} />
+                                            )}
+                                            Redeploy
+                                        </button>
                                         {deployment.error && (
                                             <span
                                                 className="text-xs text-rose-500 truncate max-w-[160px]"
