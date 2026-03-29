@@ -49,6 +49,10 @@ services:
       dockerfile: request/Dockerfile
     ports:
       - "3001:3001"
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
     env_file:
       - ./request/.env
 

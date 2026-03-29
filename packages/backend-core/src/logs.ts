@@ -24,3 +24,8 @@ export async function getDeploymentLogs(deploymentId: string) {
     const redis = await ensureRedisConnection();
     return redis.lRange(`logs:${deploymentId}`, 0, -1);
 }
+
+export async function clearDeploymentLogs(deploymentId: string) {
+    const redis = await ensureRedisConnection();
+    await redis.del(`logs:${deploymentId}`);
+}

@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { isAxiosError } from "axios";
 import { useEffect, useRef, useState } from "react";
 import {
     AlertTriangle,
@@ -17,6 +17,7 @@ import {
     type DeploymentStatusPayload,
     type UiDeploymentState,
 } from "./types";
+import BranchAutocomplete from "./BranchAutocomplete";
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -25,6 +26,10 @@ const api = axios.create({
 
 export default function HomePage() {
     const [repoUrl, setRepoUrl] = useState("");
+    const [branch, setBranch] = useState("");
+    const [commitSha, setCommitSha] = useState("");
+    const [slug, setSlug] = useState("");
+    const [resolvedSlug, setResolvedSlug] = useState<string | null>(null);
     const [uploadId, setUploadId] = useState<string | null>(null);
     const [status, setStatus] = useState<UiDeploymentState>("idle");
     const [logs, setLogs] = useState<string[]>([]);
@@ -132,26 +137,46 @@ export default function HomePage() {
     }, [logs]);
 
     const handleDeploy = async () => {
-        if (!repoUrl) return;
+        const trimmedRepo = repoUrl.trim();
+        if (!trimmedRepo) return;
 
         setStatus("cloning");
         setLogs([]);
         setErrorMsg("");
+        setResolvedSlug(null);
         stopStreaming();
 
         try {
-            const response = await api.post<{ id: string }>("/deploy", {
-                repoUrl,
-            });
-            const { id } = response.data;
+            const body: Record<string, string> = { repoUrl: trimmedRepo };
+            if (branch.trim()) body.branch = branch.trim();
+            if (commitSha.trim()) body.commitSha = commitSha.trim();
+            if (slug.trim()) body.slug = slug.trim();
+
+            const response = await api.post<{ id: string; slug?: string | null }>(
+                "/deploy",
+                body,
+            );
+            const { id, slug: returnedSlug } = response.data;
             setUploadId(id);
+            setResolvedSlug(returnedSlug ?? null);
             await checkInitialStatus(id);
             startLogStream(id);
         } catch (err) {
             setStatus("error");
-            setErrorMsg(
-                "Failed to upload repository. Please check the URL and try again.",
-            );
+            if (
+                isAxiosError(err) &&
+                err.response?.data &&
+                typeof err.response.data === "object" &&
+                "message" in err.response.data &&
+                typeof (err.response.data as { message: unknown }).message ===
+                    "string"
+            ) {
+                setErrorMsg((err.response.data as { message: string }).message);
+            } else {
+                setErrorMsg(
+                    "Failed to upload repository. Please check the URL and try again.",
+                );
+            }
             console.error(err);
         }
     };
@@ -161,8 +186,9 @@ export default function HomePage() {
         status === "uploading" ||
         status === "queued" ||
         status === "building";
+    const siteHost = resolvedSlug || uploadId || "";
     const projectUrl = uploadId
-        ? `http://${uploadId}.${DEPLOY_URL}/index.html`
+        ? `http://${siteHost}.${DEPLOY_URL}/index.html`
         : "";
 
     return (
@@ -187,6 +213,41 @@ export default function HomePage() {
                             className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:border-sky-500 transition-colors disabled:opacity-50"
                             disabled={isWorking}
                         />
+                    </div>
+
+                    <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
+                        <BranchAutocomplete
+                            repoUrl={repoUrl}
+                            value={branch}
+                            onChange={setBranch}
+                            disabled={isWorking}
+                        />
+                        <div>
+                            <label className="block text-xs font-medium text-slate-500 mb-1">
+                                Commit SHA (optional)
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="abc123…"
+                                value={commitSha}
+                                onChange={(e) => setCommitSha(e.target.value)}
+                                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-sky-500 disabled:opacity-50"
+                                disabled={isWorking}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-slate-500 mb-1">
+                                Site slug (optional)
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="my-portfolio"
+                                value={slug}
+                                onChange={(e) => setSlug(e.target.value)}
+                                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-sky-500 disabled:opacity-50"
+                                disabled={isWorking}
+                            />
+                        </div>
                     </div>
 
                     <button
@@ -246,7 +307,7 @@ export default function HomePage() {
                                 ref={logsBoxRef}
                                 className="terminal-content max-h-80 overflow-y-auto px-5 py-4 font-mono text-sm space-y-1 text-slate-300"
                             >
-                                {logs.length === 0 && (
+                                {logs.length === 0 && isWorking && (
                                     <p className="text-slate-500 flex items-center gap-3">
                                         <span className="text-emerald-500/80">
                                             »
@@ -255,6 +316,29 @@ export default function HomePage() {
                                         <span className="terminal-cursor inline-block w-2 h-4 bg-emerald-400/80 ml-0.5" />
                                     </p>
                                 )}
+                                {logs.length === 0 && status === "error" && (
+                                    <p className="text-rose-400/90 flex items-center gap-3">
+                                        <span className="text-rose-500/80">
+                                            »
+                                        </span>
+                                        <span>
+                                            Stopped — no build logs were received.
+                                            See the message below.
+                                        </span>
+                                    </p>
+                                )}
+                                {logs.length === 0 &&
+                                    status === "deployed" && (
+                                        <p className="text-slate-500 flex items-center gap-3">
+                                            <span className="text-emerald-500/80">
+                                                »
+                                            </span>
+                                            <span>
+                                                Deployment finished (no log lines
+                                                in this view).
+                                            </span>
+                                        </p>
+                                    )}
                                 {logs.map((line, idx) => (
                                     <p
                                         key={`${idx}-${line.slice(0, 16)}`}

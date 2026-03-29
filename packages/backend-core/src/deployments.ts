@@ -6,6 +6,7 @@ import {
     type DeploymentStatusPayload,
 } from "@packages/shared/deployment";
 import { ensureRedisConnection } from "./redis-connection";
+import { getSlugForDeploymentId } from "./slugs";
 
 /** Mirrors Postgres status into Redis for SSE (`/logs/stream` reads `status:${id}`). */
 async function mirrorDeploymentStatusToRedis(
@@ -28,6 +29,9 @@ export interface DeploymentRecord {
     created_at: string;
     updated_at: string;
     github_user: string | null;
+    git_branch: string | null;
+    commit_sha: string | null;
+    slug: string | null;
 }
 
 interface DeploymentRow {
@@ -38,6 +42,8 @@ interface DeploymentRow {
     created_at: string;
     updated_at: string;
     github_user: string | null;
+    git_branch: string | null;
+    commit_sha: string | null;
 }
 
 let pool: Pool | null = null;
@@ -56,7 +62,10 @@ function getPool(): Pool {
     return pool;
 }
 
-function mapDeploymentRow(row: DeploymentRow): DeploymentRecord {
+function mapDeploymentRow(
+    row: DeploymentRow,
+    slug: string | null = null,
+): DeploymentRecord {
     if (!isDeploymentState(row.status)) {
         throw new Error(`Invalid deployment state in database: ${row.status}`);
     }
@@ -64,6 +73,7 @@ function mapDeploymentRow(row: DeploymentRow): DeploymentRecord {
     return {
         ...row,
         status: row.status,
+        slug,
     };
 }
 
@@ -81,8 +91,16 @@ export async function initDeploymentStore() {
       error       TEXT,
       created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      github_user TEXT
+      github_user TEXT,
+      git_branch  TEXT,
+      commit_sha  TEXT
     );
+  `);
+    await pool.query(`
+    ALTER TABLE deployments ADD COLUMN IF NOT EXISTS git_branch TEXT;
+  `);
+    await pool.query(`
+    ALTER TABLE deployments ADD COLUMN IF NOT EXISTS commit_sha TEXT;
   `);
 }
 
@@ -90,11 +108,20 @@ export async function createDeployment(
     id: string,
     repoUrl: string,
     githubUser?: string,
+    gitBranch?: string | null,
+    commitSha?: string | null,
 ) {
     await getPool().query(
-        `INSERT INTO deployments (id, repo_url, status, github_user)
-     VALUES ($1, $2, $3, $4)`,
-        [id, repoUrl, "cloning", githubUser || null],
+        `INSERT INTO deployments (id, repo_url, status, github_user, git_branch, commit_sha)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+            id,
+            repoUrl,
+            "cloning",
+            githubUser || null,
+            gitBranch ?? null,
+            commitSha ?? null,
+        ],
     );
     await mirrorDeploymentStatusToRedis(id, "cloning");
 }
@@ -113,6 +140,24 @@ export async function updateDeploymentState(
         [status, error ?? null, id],
     );
     await mirrorDeploymentStatusToRedis(id, status);
+}
+
+export async function getDeploymentById(
+    id: string,
+): Promise<DeploymentRecord | null> {
+    const result = await getPool().query<DeploymentRow>(
+        `SELECT id, repo_url, status, error, created_at, updated_at, github_user, git_branch, commit_sha
+       FROM deployments
+      WHERE id = $1`,
+        [id],
+    );
+
+    if (result.rows.length === 0) {
+        return null;
+    }
+
+    const slug = await getSlugForDeploymentId(id);
+    return mapDeploymentRow(result.rows[0], slug);
 }
 
 export async function getDeploymentStatus(
@@ -142,10 +187,19 @@ export async function getDeploymentStatus(
     };
 }
 
+async function rowsToRecords(rows: DeploymentRow[]): Promise<DeploymentRecord[]> {
+    return Promise.all(
+        rows.map(async (row) => {
+            const slug = await getSlugForDeploymentId(row.id);
+            return mapDeploymentRow(row, slug);
+        }),
+    );
+}
+
 export async function listDeployments(githubUser?: string) {
     if (githubUser) {
         const result = await getPool().query<DeploymentRow>(
-            `SELECT id, repo_url, status, error, created_at, updated_at, github_user
+            `SELECT id, repo_url, status, error, created_at, updated_at, github_user, git_branch, commit_sha
          FROM deployments
         WHERE github_user = $1
         ORDER BY created_at DESC
@@ -153,15 +207,15 @@ export async function listDeployments(githubUser?: string) {
             [githubUser],
         );
 
-        return result.rows.map(mapDeploymentRow);
+        return rowsToRecords(result.rows);
     }
 
     const result = await getPool().query<DeploymentRow>(
-        `SELECT id, repo_url, status, error, created_at, updated_at, github_user
+        `SELECT id, repo_url, status, error, created_at, updated_at, github_user, git_branch, commit_sha
        FROM deployments
       ORDER BY created_at DESC
       LIMIT 10`,
     );
 
-    return result.rows.map(mapDeploymentRow);
+    return rowsToRecords(result.rows);
 }

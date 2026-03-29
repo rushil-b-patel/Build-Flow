@@ -45,19 +45,53 @@ async function processDeployment(id: string) {
     }
 }
 
-async function main() {
-    await Promise.all([ensureRedisConnection(), initDeploymentStore()]);
-    await cleanupStaleWorkspaces();
-    console.log("Deploy worker ready — blocking on Redis list build-queue");
+const blpopTimeoutSec = Math.max(
+    1,
+    parseInt(process.env.WORKER_BRPOP_TIMEOUT_SEC || "5", 10) || 5,
+);
+const concurrency = Math.max(
+    1,
+    parseInt(process.env.WORKER_CONCURRENCY || "1", 10) || 1,
+);
 
-    while (true) {
-        const id = await dequeueBuild();
-        if (!id) {
+let shuttingDown = false;
+
+function installShutdownSignals() {
+    const onStop = () => {
+        if (!shuttingDown) {
+            console.log("Shutdown signal received; draining workers…");
+        }
+        shuttingDown = true;
+    };
+    process.on("SIGINT", onStop);
+    process.on("SIGTERM", onStop);
+}
+
+async function workerLoop(workerId: number) {
+    console.log(`Deploy worker ${workerId} started`);
+    while (!shuttingDown) {
+        const id = await dequeueBuild(blpopTimeoutSec);
+        if (id) {
+            await processDeployment(id);
             continue;
         }
-
-        await processDeployment(id);
     }
+    console.log(`Deploy worker ${workerId} stopped`);
+}
+
+async function main() {
+    installShutdownSignals();
+    await Promise.all([ensureRedisConnection(), initDeploymentStore()]);
+    await cleanupStaleWorkspaces();
+    console.log(
+        `Deploy worker ready — ${concurrency} worker(s), BRPOP timeout ${blpopTimeoutSec}s`,
+    );
+
+    const workers = Array.from({ length: concurrency }, (_, i) =>
+        workerLoop(i),
+    );
+    await Promise.all(workers);
+    console.log("Deploy worker process exiting");
 }
 
 main().catch((error) => {
