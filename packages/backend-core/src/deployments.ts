@@ -6,7 +6,7 @@ import {
     type DeploymentStatusPayload,
 } from "@packages/shared/deployment";
 import { ensureRedisConnection } from "./redis-connection";
-import { getSlugForDeploymentId } from "./slugs";
+import { getSlugForDeploymentId, getSlugsForDeploymentIds } from "./slugs";
 
 /** Mirrors Postgres status into Redis for SSE (`/logs/stream` reads `status:${id}`). */
 async function mirrorDeploymentStatusToRedis(
@@ -188,12 +188,8 @@ export async function getDeploymentStatus(
 }
 
 async function rowsToRecords(rows: DeploymentRow[]): Promise<DeploymentRecord[]> {
-    return Promise.all(
-        rows.map(async (row) => {
-            const slug = await getSlugForDeploymentId(row.id);
-            return mapDeploymentRow(row, slug);
-        }),
-    );
+    const slugMap = await getSlugsForDeploymentIds(rows.map((r) => r.id));
+    return rows.map((row) => mapDeploymentRow(row, slugMap.get(row.id) ?? null));
 }
 
 export async function listDeployments(githubUser?: string) {
