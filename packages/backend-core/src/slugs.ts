@@ -75,3 +75,17 @@ export async function getSlugForDeploymentId(
     const redis = await ensureRedisConnection();
     return redis.get(`${ID_TO_SLUG}${deploymentId}`);
 }
+
+export async function getSlugsForDeploymentIds(
+    ids: string[],
+): Promise<Map<string, string | null>> {
+    if (ids.length === 0) return new Map();
+    const redis = await ensureRedisConnection();
+    const keys = ids.map((id) => `${ID_TO_SLUG}${id}`);
+    const values = await redis.mGet(keys);
+    const map = new Map<string, string | null>();
+    for (let i = 0; i < ids.length; i++) {
+        map.set(ids[i], values[i] ?? null);
+    }
+    return map;
+}

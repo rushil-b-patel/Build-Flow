@@ -10,9 +10,7 @@ export function parseGitHubRepoUrl(input: string): {
 
     const ssh = /^git@github\.com:([^/]+)\/(.+?)(?:\.git)?$/i.exec(s);
     if (ssh) {
-        const owner = ssh[1];
-        let repo = ssh[2].replace(/\.git$/i, "");
-        return { owner, repo };
+        return { owner: ssh[1], repo: ssh[2] };
     }
 
     try {

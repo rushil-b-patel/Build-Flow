@@ -99,9 +99,7 @@ export async function listGitHubBranchesHandler(req: Request, res: Response) {
                     ? 404
                     : result.status === 403
                       ? 403
-                      : result.status >= 500
-                        ? 502
-                        : 502;
+                      : 502;
             res.status(status).json({ message: result.message, branches: [] });
             return;
         }
