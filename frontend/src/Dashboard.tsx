@@ -258,6 +258,8 @@ export default function Dashboard() {
                         const host = siteHost(deployment);
                         const projectUrl = `http://${host}.${DEPLOY_URL}/index.html`;
                         const isRedeploying = redeployingId === deployment.id;
+                        const isFailed = deployment.status === "error";
+                        const branchName = deployment.git_branch;
 
                         return (
                             <div
@@ -268,6 +270,11 @@ export default function Dashboard() {
                                     <div className="flex items-center justify-between">
                                         <span
                                             className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg ${cfg.bg} ${cfg.color} ${cfg.border} border`}
+                                            title={
+                                                isFailed && deployment.error
+                                                    ? deployment.error
+                                                    : undefined
+                                            }
                                         >
                                             <Icon
                                                 size={13}
@@ -293,6 +300,9 @@ export default function Dashboard() {
                                     >
                                         {repoName(deployment.repo_url)}
                                     </a>
+                                    <span className="text-xs text-slate-500 truncate">
+                                        Branch: {branchName}
+                                    </span>
                                     {deployment.status === "deployed" && (
                                         <a
                                             href={projectUrl}
@@ -337,7 +347,12 @@ export default function Dashboard() {
 
                                 <div className="hidden sm:flex items-center gap-4">
                                     <span
-                                        className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg ${cfg.bg} ${cfg.color} ${cfg.border} border shrink-0 min-w-[90px] justify-center`}
+                                        className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg ${cfg.bg} ${cfg.color} ${cfg.border} border shrink-0 min-w-22.5 justify-center`}
+                                        title={
+                                            isFailed && deployment.error
+                                                ? deployment.error
+                                                : undefined
+                                        }
                                     >
                                         <Icon
                                             size={13}
@@ -355,6 +370,11 @@ export default function Dashboard() {
                                     >
                                         {repoName(deployment.repo_url)}
                                     </a>
+                                    {branchName && (
+                                        <span className="flex items-center text-xs text-slate-500 shrink-0">
+                                            <GitBranch size={20} /> <span className="ml-2">{branchName}</span>
+                                        </span>
+                                    )}
                                     <div className="ml-auto flex items-center gap-4 shrink-0">
                                         {deployment.status === "deployed" && (
                                             <a
@@ -395,15 +415,7 @@ export default function Dashboard() {
                                             )}
                                             Redeploy
                                         </button>
-                                        {deployment.error && (
-                                            <span
-                                                className="text-xs text-rose-500 truncate max-w-[160px]"
-                                                title={deployment.error}
-                                            >
-                                                {deployment.error}
-                                            </span>
-                                        )}
-                                        <span className="text-xs text-slate-400 min-w-[60px] text-right">
+                                        <span className="text-xs text-slate-400 min-w-15 text-right">
                                             {relativeTime(
                                                 deployment.created_at,
                                             )}

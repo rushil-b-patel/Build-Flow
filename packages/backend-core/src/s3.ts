@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import {
     GetObjectCommand,
+    HeadObjectCommand,
     ListObjectsV2Command,
     PutObjectCommand,
     S3Client,
@@ -27,6 +28,30 @@ export function getS3Client() {
         });
     }
     return s3Client;
+}
+
+export async function objectExists(key: string): Promise<boolean> {
+    try {
+        await getS3Client().send(
+            new HeadObjectCommand({
+                Bucket: getBucketName(),
+                Key: key,
+            }),
+        );
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+export async function putObjectFromBuffer(key: string, body: Buffer) {
+    await getS3Client().send(
+        new PutObjectCommand({
+            Bucket: getBucketName(),
+            Key: key,
+            Body: body,
+        }),
+    );
 }
 
 export async function putObjectFromFile(key: string, localFilePath: string) {

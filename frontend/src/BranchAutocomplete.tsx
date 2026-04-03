@@ -19,7 +19,6 @@ function useDebounced<T>(value: T, delayMs: number): T {
     return debounced;
 }
 
-/** Filter by query, then sort: exact (case-insensitive), prefix match, substring match, then name. */
 function sortBranchesForQuery(branches: string[], query: string): string[] {
     const q = query.trim().toLowerCase();
     const filtered = q
@@ -179,6 +178,19 @@ export default function BranchAutocomplete({
             sorted.length > 0 ||
             (branches.length > 0 && !loading && sorted.length === 0));
 
+    const toggleOpen = () => {
+        if(disabled){
+            return;
+        }
+        setOpen((prev) => {
+            if(!prev) {
+                setHighlightIdx(0);
+                return !prev;
+            }
+            return false;
+        })
+    }
+
     return (
         <div ref={rootRef} className="relative w-full">
             <label className="block text-xs font-medium text-slate-500 mb-1">
@@ -195,11 +207,8 @@ export default function BranchAutocomplete({
                     value={value}
                     onChange={(e) => {
                         onChange(e.target.value);
-                        setOpen(true);
                     }}
-                    onFocus={() => {
-                        if (branches.length > 0 || loading) setOpen(true);
-                    }}
+                    onClick={toggleOpen}
                     onKeyDown={onInputKeyDown}
                     disabled={disabled}
                     role="combobox"

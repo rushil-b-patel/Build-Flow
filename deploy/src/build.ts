@@ -1,6 +1,7 @@
 import { spawn } from "child_process";
 import { updateDeploymentState } from "@backend-core/deployments";
 import { appendDeploymentLog } from "@backend-core/logs";
+import { restoreCache, saveCache } from "./cache";
 
 function runCommand(id: string, cwd: string, command: string, args: string[]) {
     return new Promise<void>((resolve, reject) => {
@@ -31,8 +32,16 @@ function runCommand(id: string, cwd: string, command: string, args: string[]) {
 export async function buildProject(id: string, workspaceDir: string) {
     await updateDeploymentState(id, "building");
     await appendDeploymentLog(id, "Starting build process");
+
+    const cacheHash = await restoreCache(id, workspaceDir);
+
     await appendDeploymentLog(id, "$ npm install");
     await runCommand(id, workspaceDir, "npm", ["install"]);
+
+    if (cacheHash) {
+        await saveCache(id, workspaceDir, cacheHash);
+    }
+
     await appendDeploymentLog(id, "$ npm run build");
     await runCommand(id, workspaceDir, "npm", ["run", "build"]);
     await appendDeploymentLog(id, "Build completed successfully");
