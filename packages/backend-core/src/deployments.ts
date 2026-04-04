@@ -187,9 +187,13 @@ export async function getDeploymentStatus(
     };
 }
 
-async function rowsToRecords(rows: DeploymentRow[]): Promise<DeploymentRecord[]> {
+async function rowsToRecords(
+    rows: DeploymentRow[],
+): Promise<DeploymentRecord[]> {
     const slugMap = await getSlugsForDeploymentIds(rows.map((r) => r.id));
-    return rows.map((row) => mapDeploymentRow(row, slugMap.get(row.id) ?? null));
+    return rows.map((row) =>
+        mapDeploymentRow(row, slugMap.get(row.id) ?? null),
+    );
 }
 
 export async function listDeployments(githubUser?: string) {

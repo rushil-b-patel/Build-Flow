@@ -71,7 +71,7 @@ export async function createDeploymentFromRepository(
     const commitSha = opts.commitSha?.trim() || null;
 
     let slugNorm: string | null = null;
-    if (opts.slug != null && String(opts.slug).trim() !== "") {
+    if (opts.slug !== null && String(opts.slug).trim() !== "") {
         slugNorm = normalizeSlug(String(opts.slug));
         if (!isValidSlug(slugNorm)) {
             throw new Error(
@@ -144,10 +144,7 @@ export async function redeployExistingDeployment(
     if (!record) {
         throw new Error("NOT_FOUND");
     }
-    if (
-        record.github_user != null &&
-        record.github_user !== user.login
-    ) {
+    if (record.github_user !== null && record.github_user !== user.login) {
         throw new Error("FORBIDDEN");
     }
 

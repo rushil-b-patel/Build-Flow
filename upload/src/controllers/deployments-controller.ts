@@ -13,12 +13,11 @@ import { getDeploymentLogs } from "@backend-core/logs";
 
 export async function createDeploymentHandler(req: Request, res: Response) {
     const rawRepo = req.body?.repoUrl;
-    const repoUrl =
-        typeof rawRepo === "string" ? rawRepo.trim() : "";
+    const repoUrl = typeof rawRepo === "string" ? rawRepo.trim() : "";
     if (!repoUrl) {
         res.status(400).json({
             message:
-                "repoUrl is required (send a JSON body with { \"repoUrl\": \"https://github.com/owner/repo\" })",
+                'repoUrl is required (send a JSON body with { "repoUrl": "https://github.com/owner/repo" })',
         });
         return;
     }
@@ -26,8 +25,7 @@ export async function createDeploymentHandler(req: Request, res: Response) {
         typeof req.body.branch === "string" ? req.body.branch : undefined;
     const commitSha =
         typeof req.body.commitSha === "string" ? req.body.commitSha : undefined;
-    const slug =
-        typeof req.body.slug === "string" ? req.body.slug : undefined;
+    const slug = typeof req.body.slug === "string" ? req.body.slug : undefined;
     try {
         const deployment = await createDeploymentFromRepository(
             repoUrl,
@@ -69,7 +67,9 @@ export async function redeployDeploymentHandler(req: Request, res: Response) {
             return;
         }
         if (msg === "FORBIDDEN") {
-            res.status(403).json({ message: "Not allowed to redeploy this project" });
+            res.status(403).json({
+                message: "Not allowed to redeploy this project",
+            });
             return;
         }
         res.status(500).json({ message: msg });
