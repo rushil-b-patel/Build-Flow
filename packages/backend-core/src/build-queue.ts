@@ -9,9 +9,7 @@ export async function enqueueBuild(deploymentId: string) {
 }
 
 /** @param timeoutSeconds 0 = block indefinitely (use sparingly; prefer timeout for shutdown loops) */
-export async function dequeueBuild(
-    timeoutSeconds = 0,
-): Promise<string | null> {
+export async function dequeueBuild(timeoutSeconds = 0): Promise<string | null> {
     const redis = await ensureRedisConnection();
     const response = await redis.brPop(
         commandOptions({ isolated: true }),

@@ -6,7 +6,10 @@ const GITHUB_ACCEPT = "application/vnd.github+json";
 async function fetchAllBranchNames(
     owner: string,
     repo: string,
-): Promise<{ ok: true; names: string[] } | { ok: false; status: number; message: string }> {
+): Promise<
+    | { ok: true; names: string[] }
+    | { ok: false; status: number; message: string }
+> {
     const token = process.env.GITHUB_TOKEN?.trim();
     const headers: Record<string, string> = {
         Accept: GITHUB_ACCEPT,
@@ -79,7 +82,9 @@ async function fetchAllBranchNames(
 export async function listGitHubBranchesHandler(req: Request, res: Response) {
     const repoUrl = req.query.repoUrl as string | undefined;
     if (!repoUrl?.trim()) {
-        res.status(400).json({ message: "repoUrl query parameter is required" });
+        res.status(400).json({
+            message: "repoUrl query parameter is required",
+        });
         return;
     }
 
@@ -95,11 +100,7 @@ export async function listGitHubBranchesHandler(req: Request, res: Response) {
         const result = await fetchAllBranchNames(parsed.owner, parsed.repo);
         if (!result.ok) {
             const status =
-                result.status === 404
-                    ? 404
-                    : result.status === 403
-                      ? 403
-                      : 502;
+                result.status === 404 ? 404 : result.status === 403 ? 403 : 502;
             res.status(status).json({ message: result.message, branches: [] });
             return;
         }
