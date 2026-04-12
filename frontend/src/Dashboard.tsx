@@ -307,10 +307,10 @@ export default function Dashboard() {
                                 key={deployment.id}
                                 className="group rounded-2xl border border-slate-200 bg-white/95 backdrop-blur shadow-sm hover:shadow-md transition-all p-4 sm:p-5"
                             >
-                                <div className="flex flex-col gap-3 sm:hidden">
-                                    <div className="flex items-center justify-between">
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                                    <div className="flex items-center justify-between sm:contents">
                                         <span
-                                            className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg ${cfg.bg} ${cfg.color} ${cfg.border} border`}
+                                            className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg ${cfg.bg} ${cfg.color} ${cfg.border} border shrink-0 sm:min-w-22.5 sm:justify-center`}
                                             title={
                                                 isFailed && deployment.error
                                                     ? deployment.error
@@ -327,98 +327,13 @@ export default function Dashboard() {
                                             />
                                             {cfg.label}
                                         </span>
-                                        <span className="text-xs text-slate-400">
+                                        <span className="text-xs text-slate-400 sm:hidden">
                                             {relativeTime(
                                                 deployment.created_at,
                                             )}
                                         </span>
                                     </div>
-                                    <a
-                                        href={deployment.repo_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-sm font-medium text-slate-800 hover:text-sky-600 transition-colors truncate"
-                                    >
-                                        {repoName(deployment.repo_url)}
-                                    </a>
-                                    <span className="text-xs text-slate-500 truncate">
-                                        Branch: {branchName}
-                                    </span>
-                                    {deployment.status === "deployed" && (
-                                        <a
-                                            href={projectUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700 font-medium truncate"
-                                        >
-                                            {projectUrl}{" "}
-                                            <ArrowUpRight size={12} />
-                                        </a>
-                                    )}
-                                    <div className="flex items-center gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                void handleRedeploy(
-                                                    deployment.id,
-                                                )
-                                            }
-                                            disabled={isRedeploying || isBusy}
-                                            className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed"
-                                        >
-                                            {isRedeploying ? (
-                                                <Loader2
-                                                    size={14}
-                                                    className="animate-spin"
-                                                />
-                                            ) : (
-                                                <RefreshCw size={14} />
-                                            )}
-                                            Redeploy
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                void handleDelete(deployment.id)
-                                            }
-                                            disabled={isDeleting || isBusy}
-                                            className="inline-flex items-center gap-1.5 text-xs font-medium text-rose-500 hover:text-rose-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                                        >
-                                            {isDeleting ? (
-                                                <Loader2
-                                                    size={14}
-                                                    className="animate-spin"
-                                                />
-                                            ) : (
-                                                <Trash2 size={14} />
-                                            )}
-                                            Delete
-                                        </button>
-                                    </div>
-                                    {deployment.error && (
-                                        <p className="text-xs text-rose-500 truncate">
-                                            {deployment.error}
-                                        </p>
-                                    )}
-                                </div>
 
-                                <div className="hidden sm:flex items-center gap-4">
-                                    <span
-                                        className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg ${cfg.bg} ${cfg.color} ${cfg.border} border shrink-0 min-w-22.5 justify-center`}
-                                        title={
-                                            isFailed && deployment.error
-                                                ? deployment.error
-                                                : undefined
-                                        }
-                                    >
-                                        <Icon
-                                            size={13}
-                                            className={
-                                                cfg.spin ? "animate-spin" : ""
-                                            }
-                                        />
-                                        {cfg.label}
-                                    </span>
                                     <a
                                         href={deployment.repo_url}
                                         target="_blank"
@@ -427,6 +342,7 @@ export default function Dashboard() {
                                     >
                                         {repoName(deployment.repo_url)}
                                     </a>
+
                                     {branchName && (
                                         <span className="flex items-center text-xs text-slate-500 shrink-0">
                                             <GitBranch size={20} />{" "}
@@ -435,13 +351,14 @@ export default function Dashboard() {
                                             </span>
                                         </span>
                                     )}
-                                    <div className="ml-auto flex items-center gap-4 shrink-0">
+
+                                    <div className="flex items-center gap-3 sm:gap-4 sm:ml-auto sm:shrink-0">
                                         {deployment.status === "deployed" && (
                                             <a
                                                 href={projectUrl}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700 font-medium opacity-0 group-hover:opacity-100 transition-opacity"
+                                                className="inline-flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700 font-medium sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                                             >
                                                 Visit <ArrowUpRight size={12} />
                                             </a>
@@ -472,7 +389,7 @@ export default function Dashboard() {
                                                 void handleDelete(deployment.id)
                                             }
                                             disabled={isDeleting || isBusy}
-                                            className="inline-flex items-center gap-1 text-xs font-medium text-rose-500 hover:text-rose-700 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                                            className="inline-flex items-center gap-1 text-xs font-medium text-rose-500 hover:text-rose-700 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                                         >
                                             {isDeleting ? (
                                                 <Loader2
@@ -484,12 +401,18 @@ export default function Dashboard() {
                                             )}
                                             Delete
                                         </button>
-                                        <span className="text-xs text-slate-400 min-w-15 text-right">
+                                        <span className="hidden sm:inline text-xs text-slate-400 min-w-15 text-right">
                                             {relativeTime(
                                                 deployment.created_at,
                                             )}
                                         </span>
                                     </div>
+
+                                    {deployment.error && (
+                                        <p className="text-xs text-rose-500 truncate sm:hidden">
+                                            {deployment.error}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         );
