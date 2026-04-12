@@ -34,8 +34,13 @@ export default function HomePage() {
     const [status, setStatus] = useState<UiDeploymentState>("idle");
     const [logs, setLogs] = useState<string[]>([]);
     const [errorMsg, setErrorMsg] = useState("");
+    const [existingDeployment, setExistingDeployment] = useState<{
+        id: string;
+        slug: string | null;
+    } | null>(null);
     const eventSourceRef = useRef<EventSource | null>(null);
     const logsBoxRef = useRef<HTMLDivElement | null>(null);
+    const existCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const stopStreaming = () => {
         if (eventSourceRef.current) {
@@ -87,6 +92,30 @@ export default function HomePage() {
         } catch (err) {
             console.error("Failed to fetch initial status", err);
         }
+    };
+
+    const onChangeInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setRepoUrl(value);
+        setExistingDeployment(null);
+
+        if (existCheckTimer.current) clearTimeout(existCheckTimer.current);
+        const trimmed = value.trim();
+        if (!trimmed) return;
+
+        existCheckTimer.current = setTimeout(() => {
+            void api
+                .get<{ exist: boolean; deployment: { id: string; slug: string | null } | null }>(
+                    "/deployment/exist",
+                    { params: { repoUrl: trimmed } },
+                )
+                .then((res) => {
+                    if (res.data.exist && res.data.deployment) {
+                        setExistingDeployment(res.data.deployment);
+                    }
+                })
+                .catch(() => {});
+        }, 400);
     };
 
     useEffect(() => {
@@ -209,11 +238,21 @@ export default function HomePage() {
                             type="text"
                             placeholder="https://github.com/username/repo"
                             value={repoUrl}
-                            onChange={(e) => setRepoUrl(e.target.value)}
+                            onChange={onChangeInput}
                             className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:border-sky-500 transition-colors disabled:opacity-50"
                             disabled={isWorking}
                         />
                     </div>
+
+                    {existingDeployment && (
+                        <div className="w-full flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                            <AlertTriangle size={16} className="shrink-0" />
+                            <span>
+                                This repo already has a deployment. Deploying
+                                again will create a new one.
+                            </span>
+                        </div>
+                    )}
 
                     <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
                         <BranchAutocomplete

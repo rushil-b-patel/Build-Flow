@@ -204,6 +204,23 @@ async function rowsToRecords(
     );
 }
 
+export async function findDeploymentByRepo(
+    repoUrl: string,
+    githubUser: string,
+): Promise<DeploymentRecord | null> {
+    const result = await getPool().query<DeploymentRow>(
+        `SELECT id, repo_url, status, error, created_at, updated_at, github_user, git_branch, commit_sha
+           FROM deployments
+          WHERE repo_url = $1 AND github_user = $2
+          ORDER BY created_at DESC
+          LIMIT 1`,
+        [repoUrl, githubUser],
+    );
+    if (result.rows.length === 0) return null;
+    const slug = await getSlugForDeploymentId(result.rows[0].id);
+    return mapDeploymentRow(result.rows[0], slug);
+}
+
 export async function listDeployments(githubUser?: string) {
     if (githubUser) {
         const result = await getPool().query<DeploymentRow>(

@@ -6,6 +6,7 @@ import {
 } from "@upload/services/deployment-service";
 import {
     deleteDeployment,
+    findDeploymentByRepo,
     getDeploymentById,
     getDeploymentStatus,
     listDeployments,
@@ -231,6 +232,20 @@ export async function getDeploymentsHandler(req: Request, res: Response) {
     try {
         const deployments = await listDeployments(req.user?.login);
         res.json({ deployments });
+    } catch (error) {
+        res.status(500).json({ message: (error as Error).message });
+    }
+}
+
+export async function isDeploymentExistHandler(req: Request, res: Response) {
+    const repoUrl = req.query.repoUrl as string;
+    if (!repoUrl) {
+        res.status(400).json({ message: "repoUrl is required" });
+        return;
+    }
+    try {
+        const deployment = await findDeploymentByRepo(repoUrl, req.user!.login);
+        res.json({ exist: !!deployment, deployment });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }

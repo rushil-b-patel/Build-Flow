@@ -18,6 +18,7 @@ import {
     getDeploymentsHandler,
     getDeploymentStatusHandler,
     redeployDeploymentHandler,
+    isDeploymentExistHandler,
 } from "@upload/controllers/deployments-controller";
 import {
     authMiddleware,
@@ -39,6 +40,7 @@ app.get("/auth/github/callback", githubCallbackHandler);
 app.get("/auth/me", authMiddleware, authMeHandler);
 app.post("/auth/logout", authMiddleware, logoutHandler);
 
+app.get("/deployment/exist", authMiddleware, isDeploymentExistHandler);
 app.get("/github/branches", optionalAuthMiddleware, listGitHubBranchesHandler);
 app.post("/deploy", optionalAuthMiddleware, createDeploymentHandler);
 app.post("/redeploy/:id", authMiddleware, redeployDeploymentHandler);
