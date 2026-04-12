@@ -142,6 +142,14 @@ export async function updateDeploymentState(
     await mirrorDeploymentStatusToRedis(id, status);
 }
 
+export async function deleteDeployment(id: string): Promise<boolean> {
+    const result = await getPool().query(
+        `DELETE FROM deployments WHERE id = $1`,
+        [id],
+    );
+    return (result.rowCount ?? 0) > 0;
+}
+
 export async function getDeploymentById(
     id: string,
 ): Promise<DeploymentRecord | null> {

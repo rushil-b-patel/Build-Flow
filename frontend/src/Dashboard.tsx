@@ -9,6 +9,7 @@ import {
     Loader2,
     RefreshCw,
     Rocket,
+    Trash2,
     XCircle,
 } from "lucide-react";
 import { notifyAuthStateChanged } from "./auth";
@@ -121,6 +122,7 @@ export default function Dashboard() {
     const [error, setError] = useState("");
     const [redeployingId, setRedeployingId] = useState<string | null>(null);
     const [redeployError, setRedeployError] = useState("");
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     useEffect(() => {
         void fetchDeployments();
@@ -179,6 +181,39 @@ export default function Dashboard() {
             setRedeployError((err as Error).message);
         } finally {
             setRedeployingId(null);
+        }
+    };
+
+    const handleDelete = async (deploymentId: string) => {
+        if (!window.confirm("Delete this deployment? This cannot be undone.")) {
+            return;
+        }
+        setRedeployError("");
+        setDeletingId(deploymentId);
+        try {
+            const res = await fetch(
+                `${API_BASE_URL}/deployments/${deploymentId}`,
+                {
+                    method: "DELETE",
+                    credentials: "include",
+                },
+            );
+            if (res.status === 401) {
+                notifyAuthStateChanged();
+                setRedeployError("Please sign in to delete");
+                return;
+            }
+            if (!res.ok) {
+                const data = (await res.json().catch(() => ({}))) as {
+                    message?: string;
+                };
+                throw new Error(data.message || "Delete failed");
+            }
+            await fetchDeployments();
+        } catch (err) {
+            setRedeployError((err as Error).message);
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -258,6 +293,12 @@ export default function Dashboard() {
                         const host = siteHost(deployment);
                         const projectUrl = `http://${host}.${DEPLOY_URL}/index.html`;
                         const isRedeploying = redeployingId === deployment.id;
+                        const isDeleting = deletingId === deployment.id;
+                        const isBusy =
+                            deployment.status === "cloning" ||
+                            deployment.status === "uploading" ||
+                            deployment.status === "queued" ||
+                            deployment.status === "building";
                         const isFailed = deployment.status === "error";
                         const branchName = deployment.git_branch;
 
@@ -314,30 +355,46 @@ export default function Dashboard() {
                                             <ArrowUpRight size={12} />
                                         </a>
                                     )}
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            void handleRedeploy(deployment.id)
-                                        }
-                                        disabled={
-                                            isRedeploying ||
-                                            deployment.status === "cloning" ||
-                                            deployment.status === "uploading" ||
-                                            deployment.status === "queued" ||
-                                            deployment.status === "building"
-                                        }
-                                        className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed"
-                                    >
-                                        {isRedeploying ? (
-                                            <Loader2
-                                                size={14}
-                                                className="animate-spin"
-                                            />
-                                        ) : (
-                                            <RefreshCw size={14} />
-                                        )}
-                                        Redeploy
-                                    </button>
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                void handleRedeploy(
+                                                    deployment.id,
+                                                )
+                                            }
+                                            disabled={isRedeploying || isBusy}
+                                            className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed"
+                                        >
+                                            {isRedeploying ? (
+                                                <Loader2
+                                                    size={14}
+                                                    className="animate-spin"
+                                                />
+                                            ) : (
+                                                <RefreshCw size={14} />
+                                            )}
+                                            Redeploy
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                void handleDelete(deployment.id)
+                                            }
+                                            disabled={isDeleting || isBusy}
+                                            className="inline-flex items-center gap-1.5 text-xs font-medium text-rose-500 hover:text-rose-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                                        >
+                                            {isDeleting ? (
+                                                <Loader2
+                                                    size={14}
+                                                    className="animate-spin"
+                                                />
+                                            ) : (
+                                                <Trash2 size={14} />
+                                            )}
+                                            Delete
+                                        </button>
+                                    </div>
                                     {deployment.error && (
                                         <p className="text-xs text-rose-500 truncate">
                                             {deployment.error}
@@ -372,7 +429,10 @@ export default function Dashboard() {
                                     </a>
                                     {branchName && (
                                         <span className="flex items-center text-xs text-slate-500 shrink-0">
-                                            <GitBranch size={20} /> <span className="ml-2">{branchName}</span>
+                                            <GitBranch size={20} />{" "}
+                                            <span className="ml-2">
+                                                {branchName}
+                                            </span>
                                         </span>
                                     )}
                                     <div className="ml-auto flex items-center gap-4 shrink-0">
@@ -393,16 +453,7 @@ export default function Dashboard() {
                                                     deployment.id,
                                                 )
                                             }
-                                            disabled={
-                                                isRedeploying ||
-                                                deployment.status ===
-                                                    "cloning" ||
-                                                deployment.status ===
-                                                    "uploading" ||
-                                                deployment.status ===
-                                                    "queued" ||
-                                                deployment.status === "building"
-                                            }
+                                            disabled={isRedeploying || isBusy}
                                             className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed"
                                         >
                                             {isRedeploying ? (
@@ -414,6 +465,24 @@ export default function Dashboard() {
                                                 <RefreshCw size={14} />
                                             )}
                                             Redeploy
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                void handleDelete(deployment.id)
+                                            }
+                                            disabled={isDeleting || isBusy}
+                                            className="inline-flex items-center gap-1 text-xs font-medium text-rose-500 hover:text-rose-700 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                                        >
+                                            {isDeleting ? (
+                                                <Loader2
+                                                    size={14}
+                                                    className="animate-spin"
+                                                />
+                                            ) : (
+                                                <Trash2 size={14} />
+                                            )}
+                                            Delete
                                         </button>
                                         <span className="text-xs text-slate-400 min-w-15 text-right">
                                             {relativeTime(

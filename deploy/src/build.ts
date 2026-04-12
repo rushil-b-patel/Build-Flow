@@ -3,9 +3,43 @@ import { updateDeploymentState } from "@backend-core/deployments";
 import { appendDeploymentLog } from "@backend-core/logs";
 import { restoreCache, saveCache } from "./cache";
 
+const BUILD_TIMEOUT_MS = Math.max(
+    0,
+    parseInt(process.env.BUILD_TIMEOUT_MS || "300000", 10) || 300_000,
+);
+
 function runCommand(id: string, cwd: string, command: string, args: string[]) {
     return new Promise<void>((resolve, reject) => {
-        const child = spawn(command, args, { cwd });
+        const ac = new AbortController();
+        const child = spawn(command, args, { cwd, signal: ac.signal });
+
+        let settled = false;
+        const settle = (fn: () => void) => {
+            if (!settled) {
+                settled = true;
+                clearTimeout(timer);
+                fn();
+            }
+        };
+
+        const timer =
+            BUILD_TIMEOUT_MS > 0
+                ? setTimeout(() => {
+                      void appendDeploymentLog(
+                          id,
+                          `Build timed out after ${BUILD_TIMEOUT_MS}ms`,
+                      );
+                      ac.abort();
+                      child.kill("SIGKILL");
+                      settle(() =>
+                          reject(
+                              new Error(
+                                  `${command} ${args.join(" ")} timed out after ${BUILD_TIMEOUT_MS}ms`,
+                              ),
+                          ),
+                      );
+                  }, BUILD_TIMEOUT_MS)
+                : undefined;
 
         child.stdout.on("data", (data) => {
             void appendDeploymentLog(id, data.toString());
@@ -16,15 +50,18 @@ function runCommand(id: string, cwd: string, command: string, args: string[]) {
         });
 
         child.on("error", (err) => {
-            reject(err);
+            if (err.name === "AbortError") return;
+            settle(() => reject(err));
         });
 
         child.on("close", (code) => {
             if (code !== 0) {
-                reject(new Error(`${command} ${args.join(" ")} failed`));
+                settle(() =>
+                    reject(new Error(`${command} ${args.join(" ")} failed`)),
+                );
                 return;
             }
-            resolve();
+            settle(() => resolve());
         });
     });
 }

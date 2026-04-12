@@ -12,6 +12,7 @@ import {
 import { listGitHubBranchesHandler } from "@upload/controllers/github-branches-controller";
 import {
     createDeploymentHandler,
+    deleteDeploymentHandler,
     getDeploymentLogStreamHandler,
     getDeploymentLogsHandler,
     getDeploymentsHandler,
@@ -41,6 +42,7 @@ app.post("/auth/logout", authMiddleware, logoutHandler);
 app.get("/github/branches", optionalAuthMiddleware, listGitHubBranchesHandler);
 app.post("/deploy", optionalAuthMiddleware, createDeploymentHandler);
 app.post("/redeploy/:id", authMiddleware, redeployDeploymentHandler);
+app.delete("/deployments/:id", authMiddleware, deleteDeploymentHandler);
 app.get("/logs", getDeploymentLogsHandler);
 app.get("/logs/stream", getDeploymentLogStreamHandler);
 app.get("/status", getDeploymentStatusHandler);

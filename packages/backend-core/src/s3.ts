@@ -1,5 +1,6 @@
 import { promises as fs } from "fs";
 import {
+    DeleteObjectsCommand,
     GetObjectCommand,
     HeadObjectCommand,
     ListObjectsV2Command,
@@ -76,6 +77,28 @@ export async function getObjectBytes(key: string): Promise<Buffer | null> {
         return null;
     }
     return Buffer.from(await response.Body.transformToByteArray());
+}
+
+export async function deleteObjectsByPrefix(prefix: string): Promise<number> {
+    const keys = await listObjectKeys(prefix);
+    if (keys.length === 0) return 0;
+
+    const bucket = getBucketName();
+    const client = getS3Client();
+    // DeleteObjects accepts at most 1000 keys per call
+    for (let i = 0; i < keys.length; i += 1000) {
+        const batch = keys.slice(i, i + 1000);
+        await client.send(
+            new DeleteObjectsCommand({
+                Bucket: bucket,
+                Delete: {
+                    Objects: batch.map((Key) => ({ Key })),
+                    Quiet: true,
+                },
+            }),
+        );
+    }
+    return keys.length;
 }
 
 export async function listObjectKeys(prefix: string): Promise<string[]> {
