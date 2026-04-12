@@ -5,11 +5,18 @@ import {
     SlugTakenError,
 } from "@upload/services/deployment-service";
 import {
+    deleteDeployment,
+    getDeploymentById,
     getDeploymentStatus,
     listDeployments,
 } from "@backend-core/deployments";
 import { getRedisClient } from "@backend-core/redis-connection";
-import { getDeploymentLogs } from "@backend-core/logs";
+import { getDeploymentLogs, clearDeploymentLogs } from "@backend-core/logs";
+import { deleteObjectsByPrefix } from "@backend-core/s3";
+import {
+    getSlugForDeploymentId,
+    releaseSlugReservation,
+} from "@backend-core/slugs";
 
 export async function createDeploymentHandler(req: Request, res: Response) {
     const rawRepo = req.body?.repoUrl;
@@ -73,6 +80,59 @@ export async function redeployDeploymentHandler(req: Request, res: Response) {
             return;
         }
         res.status(500).json({ message: msg });
+    }
+}
+
+export async function deleteDeploymentHandler(req: Request, res: Response) {
+    const id = req.params.id;
+    if (!id) {
+        res.status(400).json({ message: "id is required" });
+        return;
+    }
+    if (!req.user) {
+        res.status(401).json({ message: "Sign in to delete a deployment" });
+        return;
+    }
+
+    try {
+        const record = await getDeploymentById(id);
+        if (!record) {
+            res.status(404).json({ message: "Deployment not found" });
+            return;
+        }
+        if (
+            record.github_user !== null &&
+            record.github_user !== req.user.login
+        ) {
+            res.status(403).json({
+                message: "Not allowed to delete this deployment",
+            });
+            return;
+        }
+
+        // Release slug reservation
+        const slug = await getSlugForDeploymentId(id);
+        if (slug) {
+            await releaseSlugReservation(slug, id);
+        }
+
+        // Delete S3 objects (source upload + built dist)
+        await Promise.all([
+            deleteObjectsByPrefix(`output/${id}/`),
+            deleteObjectsByPrefix(`dist/${id}/`),
+        ]);
+
+        // Clear Redis keys (logs + status)
+        await clearDeploymentLogs(id);
+        const redis = getRedisClient();
+        await redis.del(`status:${id}`);
+
+        // Delete Postgres row
+        await deleteDeployment(id);
+
+        res.json({ message: "Deployment deleted" });
+    } catch (error) {
+        res.status(500).json({ message: (error as Error).message });
     }
 }
 
