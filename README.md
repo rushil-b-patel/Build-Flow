@@ -161,40 +161,52 @@ cd Build-Flow
 
 ### Environment Variables
 
-Create `.env` files in each service directory.
+All services share a single central `.env` file at the repository root. Copy the
+template and fill in your values:
 
-**`upload/.env`** and **`deploy/.env`**:
+```bash
+cp .env.example .env
+```
+
+`.env` is the single source of truth for every service (`upload`, `deploy`,
+`request`, and `frontend`) and is git-ignored. The committed `.env.example`
+documents every variable.
 
 ```
+# S3 / Cloudflare R2 (upload, deploy, request)
 ACCESS_KEY_ID=<s3_access_key>
 SECRET_ACCESS_KEY=<s3_secret_key>
 END_POINT=<s3_endpoint_url>
 BUCKET_NAME=<bucket_name>
+
+# PostgreSQL (upload, deploy)
 DATABASE_URL=postgres://buildflow:buildflow@localhost:5433/buildflow
+
+# Redis (all backend services)
+REDIS_URL=redis://localhost:6380
+
+# GitHub OAuth (upload)
 GITHUB_CLIENT_ID=<github_oauth_client_id>
 GITHUB_CLIENT_SECRET=<github_oauth_client_secret>
-```
 
-**`request/.env`**:
-
-```
-ACCESS_KEY_ID=<s3_access_key>
-SECRET_ACCESS_KEY=<s3_secret_key>
-END_POINT=<s3_endpoint_url>
-BUCKET_NAME=<bucket_name>
-```
-
-**`frontend/.env`**:
-
-```
+# Frontend (Vite — must be VITE_-prefixed to reach the browser)
 VITE_BASE_URL=http://localhost:3000
 VITE_DEPLOY_URL=localhost:3001
 VITE_GITHUB_CLIENT_ID=<github_oauth_client_id>
 ```
 
+How the central file is consumed:
+
+- **Docker**: `docker-compose.yml` loads `.env` into every service via `env_file`.
+  `DATABASE_URL` and `REDIS_URL` are overridden per-service in the compose file
+  with the in-network hostnames (`postgres:5432`, `redis:6379`), so the
+  `localhost` values above are used only for local (non-Docker) runs.
+- **Local (no Docker)**: the backend services load the root file through
+  `DOTENV_CONFIG_PATH=../.env` (set in each service's `dev`/`start` script), and
+  the frontend reads it because Vite's `envDir` points at the repository root.
+
 Optional variables:
 
-- `REDIS_URL` — Redis connection string (default: `redis://redis:6379` in Docker, `redis://localhost:6380` locally)
 - `GITHUB_TOKEN` — Personal access token for higher GitHub API rate limits
 - `WORKER_CONCURRENCY` — Number of concurrent build workers (default: 1)
 - `WORKER_BRPOP_TIMEOUT_SEC` — Queue poll timeout in seconds (default: 5)
@@ -202,23 +214,29 @@ Optional variables:
 
 ### Run with Docker
 
+A single command builds and starts the entire stack — Redis, PostgreSQL, the
+upload service, deploy worker, request service, **and the frontend**:
+
 ```bash
 docker compose up --build
 ```
 
-This starts Redis (port 6380), PostgreSQL (port 5433), the upload service, deploy worker, and request service.
+| Service   | URL / Port              |
+|-----------|-------------------------|
+| Frontend  | http://localhost:5173   |
+| Upload    | http://localhost:3000   |
+| Request   | http://localhost:3001   |
+| PostgreSQL| localhost:5433          |
+| Redis     | localhost:6380          |
 
-Start the frontend separately:
-
-```bash
-cd frontend && npm install && npm run dev
-```
-
-The frontend runs at `http://localhost:5173`.
+The frontend runs the Vite dev server with hot reload; `frontend/` and
+`packages/` are bind-mounted into the container, so source edits are picked up
+live.
 
 ### Run without Docker
 
-Start Redis and PostgreSQL independently, then run each service:
+Start Redis and PostgreSQL independently, then run each service. All services
+read the central root `.env` automatically:
 
 ```bash
 # Terminal 1 -- Upload service

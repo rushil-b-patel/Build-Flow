@@ -217,7 +217,7 @@ export default function HomePage() {
         status === "building";
     const siteHost = resolvedSlug || uploadId || "";
     const projectUrl = uploadId
-        ? `http://${siteHost}.${DEPLOY_URL}/index.html`
+        ? `http://${siteHost}.${DEPLOY_URL}/`
         : "";
 
     return (

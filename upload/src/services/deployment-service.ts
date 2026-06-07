@@ -71,8 +71,8 @@ export async function createDeploymentFromRepository(
     const commitSha = opts.commitSha?.trim() || null;
 
     let slugNorm: string | null = null;
-    if (opts.slug !== null && String(opts.slug).trim() !== "") {
-        slugNorm = normalizeSlug(String(opts.slug));
+    if (typeof opts.slug === "string" && opts.slug.trim() !== "") {
+        slugNorm = normalizeSlug(opts.slug);
         if (!isValidSlug(slugNorm)) {
             throw new Error(
                 "Invalid slug: 2–63 characters, letters, numbers, and hyphens only (no underscores). Example: my-portfolio",
