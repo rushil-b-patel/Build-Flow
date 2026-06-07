@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/tsconfig.tsbuildinfo
+
+.env
+.env.*
+!.env.example
+
+# VCS / misc
+.git
+.gitignore
+**/*.log

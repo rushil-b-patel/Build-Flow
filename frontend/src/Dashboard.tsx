@@ -291,7 +291,7 @@ export default function Dashboard() {
                         const cfg = statusConfig(deployment.status);
                         const Icon = cfg.icon;
                         const host = siteHost(deployment);
-                        const projectUrl = `http://${host}.${DEPLOY_URL}/index.html`;
+                        const projectUrl = `http://${host}.${DEPLOY_URL}/`;
                         const isRedeploying = redeployingId === deployment.id;
                         const isDeleting = deletingId === deployment.id;
                         const isBusy =
@@ -388,7 +388,7 @@ export default function Dashboard() {
                                             onClick={() =>
                                                 void handleDelete(deployment.id)
                                             }
-                                            disabled={isDeleting || isBusy}
+                                            disabled={isDeleting}
                                             className="inline-flex items-center gap-1 text-xs font-medium text-rose-500 hover:text-rose-700 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                                         >
                                             {isDeleting ? (

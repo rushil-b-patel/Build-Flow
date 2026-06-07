@@ -1,4 +1,5 @@
 import "dotenv/config";
+import path from "path";
 import express from "express";
 import mime from "mime-types";
 import { getObjectBytes } from "@backend-core/s3";
@@ -12,21 +13,53 @@ async function resolveSiteId(subdomain: string): Promise<string> {
     return mapped ?? subdomain;
 }
 
+function candidateFiles(filePath: string): string[] {
+    if (filePath === "/") {
+        return ["/index.html"];
+    }
+    const hasExtension = path.posix.extname(filePath) !== "";
+    if (hasExtension) {
+        return [filePath];
+    }
+    const trimmed = filePath.replace(/\/$/, "");
+    return [`${trimmed}.html`, `${trimmed}/index.html`];
+}
+
+async function fetchFirstExisting(
+    id: string,
+    candidates: string[],
+): Promise<{ key: string; contents: Buffer } | null> {
+    for (const candidate of candidates) {
+        const contents = await getObjectBytes(`dist/${id}${candidate}`);
+        if (contents) {
+            return { key: candidate, contents: contents as Buffer };
+        }
+    }
+    return null;
+}
+
 app.get("/*", async (req, res) => {
     const host = req.hostname;
     const subdomain = host.split(".")[0];
-    const filePath = req.path === "/" ? "/index.html" : req.path;
+    const filePath = req.path;
 
     try {
         const id = await resolveSiteId(subdomain);
-        const contents = await getObjectBytes(`dist/${id}${filePath}`);
-        if (!contents) {
+
+        let result = await fetchFirstExisting(id, candidateFiles(filePath));
+
+        if (!result && path.posix.extname(filePath) === "") {
+            result = await fetchFirstExisting(id, ["/index.html"]);
+        }
+
+        if (!result) {
             res.status(404).send("Not found");
             return;
         }
-        const type = mime.lookup(filePath) || "application/octet-stream";
+
+        const type = mime.lookup(result.key) || "application/octet-stream";
         res.set("Content-Type", type);
-        res.send(contents);
+        res.send(result.contents);
     } catch (error) {
         const name = (error as { name?: string }).name;
         if (name === "NoSuchKey" || name === "NotFound") {

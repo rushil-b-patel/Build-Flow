@@ -10,6 +10,8 @@ const RESERVED_SLUGS = new Set([
     "ftp",
     "localhost",
     "admin",
+    "undefined",
+    "null",
 ]);
 
 export function normalizeSlug(raw: string): string {
