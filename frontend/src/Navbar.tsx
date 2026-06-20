@@ -1,28 +1,17 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Github, History, LogOut, Rocket } from "lucide-react";
-import { API_BASE_URL, GITHUB_CLIENT_ID } from "./types";
-import type { GitHubUser } from "./types";
+import { useAuth } from "./AuthContext";
 
-interface NavbarProps {
-    user: GitHubUser | null;
-    onLogout: () => void | Promise<void>;
-}
-
-export default function Navbar({ user, onLogout }: NavbarProps) {
+export default function Navbar() {
     const location = useLocation();
+    const navigate = useNavigate();
+    const { user, status, login, logout } = useAuth();
     const [menuOpen, setMenuOpen] = useState(false);
 
-    const handleLogin = async () => {
-        try {
-            const res = await fetch(`${API_BASE_URL}/auth/github`);
-            const data = await res.json();
-            window.location.href = data.url;
-        } catch {
-            // If the server returns a well-formed URL in the JSON it still works;
-            // fallback to a direct URL construction
-            window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&scope=read:user`;
-        }
+    const handleLogout = async () => {
+        await logout();
+        navigate("/");
     };
 
     return (
@@ -57,7 +46,13 @@ export default function Navbar({ user, onLogout }: NavbarProps) {
                     <History size={14} /> History
                 </Link>
 
-                {user ? (
+                {status === "loading" ? (
+                    // Auth state unknown — reserve the space, never show "Sign in"
+                    // (prevents the logged-out flash on refresh for authed users).
+                    <div className="ml-3 pl-3 border-l border-slate-200">
+                        <div className="w-8 h-8 rounded-full bg-slate-200 animate-pulse" />
+                    </div>
+                ) : user ? (
                     <div className="flex items-center gap-3 ml-3 pl-3 border-l border-slate-200">
                         <img
                             src={user.avatar_url}
@@ -68,7 +63,7 @@ export default function Navbar({ user, onLogout }: NavbarProps) {
                             {user.name || user.login}
                         </span>
                         <button
-                            onClick={onLogout}
+                            onClick={handleLogout}
                             className="text-slate-400 hover:text-slate-600 transition-colors"
                             title="Sign out"
                         >
@@ -77,7 +72,7 @@ export default function Navbar({ user, onLogout }: NavbarProps) {
                     </div>
                 ) : (
                     <button
-                        onClick={handleLogin}
+                        onClick={() => login()}
                         className="ml-3 pl-3 border-l border-slate-200 flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
                     >
                         <Github size={16} /> Sign in
@@ -126,7 +121,9 @@ export default function Navbar({ user, onLogout }: NavbarProps) {
                         <History size={14} /> History
                     </Link>
                     <div className="border-t border-slate-200 pt-3">
-                        {user ? (
+                        {status === "loading" ? (
+                            <div className="h-8 w-32 rounded-lg bg-slate-200 animate-pulse" />
+                        ) : user ? (
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     <img
@@ -140,7 +137,7 @@ export default function Navbar({ user, onLogout }: NavbarProps) {
                                 </div>
                                 <button
                                     onClick={() => {
-                                        onLogout();
+                                        void handleLogout();
                                         setMenuOpen(false);
                                     }}
                                     className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1"
@@ -151,7 +148,7 @@ export default function Navbar({ user, onLogout }: NavbarProps) {
                         ) : (
                             <button
                                 onClick={() => {
-                                    handleLogin();
+                                    void login();
                                     setMenuOpen(false);
                                 }}
                                 className="flex items-center gap-2 text-sm font-medium text-slate-600"
