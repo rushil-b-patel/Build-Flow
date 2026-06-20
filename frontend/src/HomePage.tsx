@@ -18,6 +18,7 @@ import {
     type UiDeploymentState,
 } from "./types";
 import BranchAutocomplete from "./BranchAutocomplete";
+import { useAuth } from "./AuthContext";
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -25,6 +26,8 @@ const api = axios.create({
 });
 
 export default function HomePage() {
+    const { status: authStatus, login } = useAuth();
+    const isAuthed = authStatus === "authenticated";
     const [repoUrl, setRepoUrl] = useState("");
     const [branch, setBranch] = useState("");
     const [commitSha, setCommitSha] = useState("");
@@ -168,6 +171,10 @@ export default function HomePage() {
     const handleDeploy = async () => {
         const trimmedRepo = repoUrl.trim();
         if (!trimmedRepo) return;
+        if (!isAuthed) {
+            void login();
+            return;
+        }
 
         setStatus("cloning");
         setLogs([]);
@@ -289,19 +296,29 @@ export default function HomePage() {
                         </div>
                     </div>
 
-                    <button
-                        onClick={handleDeploy}
-                        disabled={!repoUrl || isWorking}
-                        className="w-full flex justify-center items-center gap-2 py-3 px-4 rounded-xl bg-black hover:bg-white border hover:text-black active:translate-y-px transition-all disabled:cursor-not-allowed font-medium text-white shadow-sm"
-                    >
-                        {isWorking ? (
-                            <>Deploying...</>
-                        ) : (
-                            <>
-                                <UploadCloud size={20} /> Deploy Now
-                            </>
-                        )}
-                    </button>
+                    {isAuthed ? (
+                        <button
+                            onClick={handleDeploy}
+                            disabled={!repoUrl || isWorking}
+                            className="w-full flex justify-center items-center gap-2 py-3 px-4 rounded-xl bg-black hover:bg-white border hover:text-black active:translate-y-px transition-all disabled:cursor-not-allowed font-medium text-white shadow-sm"
+                        >
+                            {isWorking ? (
+                                <>Deploying...</>
+                            ) : (
+                                <>
+                                    <UploadCloud size={20} /> Deploy Now
+                                </>
+                            )}
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => void login()}
+                            disabled={authStatus === "loading"}
+                            className="w-full flex justify-center items-center gap-2 py-3 px-4 rounded-xl bg-black hover:bg-white border hover:text-black active:translate-y-px transition-all disabled:cursor-not-allowed disabled:opacity-60 font-medium text-white shadow-sm"
+                        >
+                            <Github size={20} /> Sign in to deploy
+                        </button>
+                    )}
                 </div>
 
                 {status !== "idle" && (

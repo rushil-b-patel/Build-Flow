@@ -42,7 +42,7 @@ app.post("/auth/logout", authMiddleware, logoutHandler);
 
 app.get("/deployment/exist", authMiddleware, isDeploymentExistHandler);
 app.get("/github/branches", optionalAuthMiddleware, listGitHubBranchesHandler);
-app.post("/deploy", optionalAuthMiddleware, createDeploymentHandler);
+app.post("/deploy", authMiddleware, createDeploymentHandler);
 app.post("/redeploy/:id", authMiddleware, redeployDeploymentHandler);
 app.delete("/deployments/:id", authMiddleware, deleteDeploymentHandler);
 app.get("/logs", getDeploymentLogsHandler);
