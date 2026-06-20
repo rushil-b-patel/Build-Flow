@@ -1,0 +1,104 @@
+services:
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: buildflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-buildflow}
+      POSTGRES_DB: buildflow
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U buildflow -d buildflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  upload:
+    build:
+      context: .
+      dockerfile: upload/Dockerfile
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      - NODE_ENV=production # makes the session cookie `secure` (HTTPS-only)
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgres://buildflow:${POSTGRES_PASSWORD:-buildflow}@postgres:5432/buildflow
+    depends_on:
+      redis: { condition: service_started }
+      postgres: { condition: service_healthy }
+
+  deploy:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgres://buildflow:${POSTGRES_PASSWORD:-buildflow}@postgres:5432/buildflow
+      - WORKER_CONCURRENCY=1
+    mem_limit: 2g # cap one build so it can't take the whole box down (spills to swap)
+    depends_on:
+      redis: { condition: service_started }
+      postgres: { condition: service_healthy }
+
+  request:
+    build:
+      context: .
+      dockerfile: request/Dockerfile
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+
+  # One-shot: builds the SPA and copies it into the shared volume nginx serves.
+  frontend-build:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile.prod
+      args:
+        VITE_BASE_URL: ${VITE_BASE_URL}
+        VITE_DEPLOY_URL: ${VITE_DEPLOY_URL}
+        VITE_GITHUB_CLIENT_ID: ${VITE_GITHUB_CLIENT_ID}
+    command: sh -c "rm -rf /out/* && cp -a /app/frontend/dist/. /out/"
+    volumes:
+      - frontend_dist:/out
+
+  # Invoked manually for issuing/renewing the wildcard cert (DNS-01 via Cloudflare).
+  certbot:
+    image: certbot/dns-cloudflare
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot_lib:/var/lib/letsencrypt
+      - ./secrets/cloudflare.ini:/cloudflare.ini:ro
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - frontend_dist:/srv/frontend:ro
+      - letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      upload: { condition: service_started }
+      request: { condition: service_started }
+      frontend-build: { condition: service_completed_successfully }
+
+volumes:
+  pgdata:
+  redisdata:
+  frontend_dist:
+  letsencrypt:
+  certbot_lib:

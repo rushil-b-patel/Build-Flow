@@ -1,0 +1,16 @@
+FROM node:20-alpine
+WORKDIR /app
+
+ARG VITE_BASE_URL
+ARG VITE_DEPLOY_URL
+ARG VITE_GITHUB_CLIENT_ID
+
+RUN printf "VITE_BASE_URL=%s\nVITE_DEPLOY_URL=%s\nVITE_GITHUB_CLIENT_ID=%s\n" \
+    "$VITE_BASE_URL" "$VITE_DEPLOY_URL" "$VITE_GITHUB_CLIENT_ID" > /app/.env
+
+COPY frontend/package*.json ./frontend/
+COPY packages ./packages
+RUN cd frontend && npm install
+
+COPY frontend ./frontend
+RUN cd frontend && npm run build
